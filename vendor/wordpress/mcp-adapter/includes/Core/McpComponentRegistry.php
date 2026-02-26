@@ -214,6 +214,20 @@ class McpComponentRegistry {
 	 * @return void
 	 */
 	public function add_tool( McpTool $tool ): void {
+		// Enforce mcp.public gate — reject tools whose backing ability is not explicitly marked public.
+		// This prevents the direct-add path from bypassing the same filter applied during discovery.
+		$ability = wp_get_ability( $tool->get_name() );
+		if ( $ability ) {
+			$meta = $ability->get_meta();
+			if ( ! ( $meta['mcp']['public'] ?? false ) ) {
+				$this->error_handler->log(
+					"Tool '{$tool->get_name()}' rejected: ability not marked mcp.public=true.",
+					array( 'McpComponentRegistry::add_tool' )
+				);
+				return;
+			}
+		}
+
 		// Set the MCP server before validation (validation needs it to check if validation is enabled)
 		$tool->set_mcp_server( $this->mcp_server );
 

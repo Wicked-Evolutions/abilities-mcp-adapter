@@ -165,13 +165,19 @@ class RequestRouter {
 		if ( $http_context && ! isset( $result['error'] ) && ! $http_context->session_id ) {
 			$session_result = HttpSessionValidator::create_session( $params );
 
-			if ( is_array( $session_result ) ) {
-				// Session creation failed, return error
-				return array( 'error' => $session_result );
+			// create_session now returns array{session_id, session_token} on success or an error array.
+			// Distinguish by checking for the McpErrorFactory error structure (code + message keys).
+			$is_error = isset( $session_result['error']['code'], $session_result['error']['message'] )
+				|| isset( $session_result['code'], $session_result['message'] );
+
+			if ( $is_error ) {
+				// Session creation failed — propagate error.
+				return array( 'error' => $session_result['error'] ?? $session_result );
 			}
 
-			// Store session ID in result for HttpRequestHandler to add as header
-			$result['_session_id'] = $session_result;
+			// Store session ID and token in result for HttpRequestHandler to add as response headers.
+			$result['_session_id']    = $session_result['session_id'];
+			$result['_session_token'] = $session_result['session_token'];
 		}
 
 		return $result;

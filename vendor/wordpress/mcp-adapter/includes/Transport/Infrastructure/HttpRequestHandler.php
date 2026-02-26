@@ -224,10 +224,16 @@ class HttpRequestHandler {
 			$context
 		);
 
-		// Handle session header if provided by router
+		// Handle session headers if provided by router (session creation during initialize).
 		if ( isset( $result['_session_id'] ) ) {
 			$this->add_session_header_to_response( $result['_session_id'] );
-			unset( $result['_session_id'] ); // Remove from actual response data
+			unset( $result['_session_id'] );
+		}
+
+		// Send the per-session HMAC token the client must echo back in Mcp-Session-Token.
+		if ( isset( $result['_session_token'] ) ) {
+			$this->add_response_header( 'Mcp-Session-Token', $result['_session_token'] );
+			unset( $result['_session_token'] );
 		}
 
 		// Format response based on result.
@@ -317,5 +323,26 @@ class HttpRequestHandler {
 		);
 
 		$current_session_id = $session_id;
+	}
+
+	/**
+	 * Add an arbitrary header to the REST response via a one-time filter.
+	 *
+	 * @param string $header_name  The HTTP header name.
+	 * @param string $header_value The HTTP header value.
+	 *
+	 * @return void
+	 */
+	private function add_response_header( string $header_name, string $header_value ): void {
+		add_filter(
+			'rest_post_dispatch',
+			static function ( $response ) use ( $header_name, $header_value ) {
+				if ( $response instanceof \WP_REST_Response ) {
+					$response->header( $header_name, $header_value );
+				}
+
+				return $response;
+			}
+		);
 	}
 }

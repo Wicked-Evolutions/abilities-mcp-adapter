@@ -26,6 +26,11 @@ class JsonRpcResponseBuilder {
 	 * @return array The formatted JSON-RPC response.
 	 */
 	public static function create_success_response( $request_id, $result ): array {
+		// Strip internal _metadata before sending — never expose internal diagnostics to clients.
+		if ( is_array( $result ) ) {
+			unset( $result['_metadata'] );
+		}
+
 		return array(
 			'jsonrpc' => '2.0',
 			'id'      => $request_id,
@@ -42,6 +47,9 @@ class JsonRpcResponseBuilder {
 	 * @return array The formatted JSON-RPC error response.
 	 */
 	public static function create_error_response( $request_id, array $error ): array {
+		// Strip any internal _metadata that may have leaked into the error array.
+		unset( $error['_metadata'] );
+
 		return array(
 			'jsonrpc' => '2.0',
 			'id'      => $request_id,

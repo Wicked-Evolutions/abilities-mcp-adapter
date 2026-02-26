@@ -42,9 +42,16 @@ class HttpSessionValidator {
 			return McpErrorFactory::unauthorized( 0, 'User not authenticated' );
 		}
 
-		// Validate session using SessionManager
+		// Validate session existence and expiry using SessionManager
 		if ( ! SessionManager::validate_session( $user_id, $session_id ) ) {
 			return McpErrorFactory::invalid_params( 0, 'Invalid or expired session' );
+		}
+
+		// Validate per-session HMAC token to prevent session fixation.
+		// The client must supply the token returned during initialize in Mcp-Session-Token.
+		$client_token = $context->request->get_header( 'Mcp-Session-Token' );
+		if ( ! $client_token || ! SessionManager::verify_session_token( $user_id, $session_id, $client_token ) ) {
+			return McpErrorFactory::unauthorized( 0, 'Invalid session token' );
 		}
 
 		return true;
@@ -83,13 +90,14 @@ class HttpSessionValidator {
 			return McpErrorFactory::unauthorized( 0, 'User authentication required for session creation' );
 		}
 
-		$session_id = SessionManager::create_session( $user_id, $params );
+		$result = SessionManager::create_session( $user_id, $params );
 
-		if ( ! $session_id ) {
+		if ( ! $result ) {
 			return McpErrorFactory::internal_error( 0, 'Failed to create session' );
 		}
 
-		return $session_id;
+		// Return array{session_id, session_token} for the caller to propagate both to the client.
+		return $result;
 	}
 
 	/**
