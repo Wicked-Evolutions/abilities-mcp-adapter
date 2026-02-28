@@ -1,0 +1,45 @@
+name: Dev Brief
+description: Specification for the dev agent to implement
+title: "[Brief]: "
+labels: ["dev-brief"]
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What needs to be built and why
+    validations:
+      required: true
+  - type: textarea
+    id: spec
+    attributes:
+      label: Technical specification
+      description: Detailed implementation spec
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Files to create/modify
+      description: Which files will be affected
+    validations:
+      required: true
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing plan
+      description: How to verify the implementation works
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security considerations
+      description: Any security implications or requirements
+  - type: input
+    id: assigned
+    attributes:
+      label: Assigned to
+      placeholder: "Dev agent"
+    validations:
+      required: true

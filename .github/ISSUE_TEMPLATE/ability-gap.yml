@@ -1,0 +1,49 @@
+name: Ability Gap / Feature Request
+description: Request a new ability or report a missing capability
+title: "[Gap]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What ability is missing?
+      description: Describe what you need to do that is not currently possible
+    validations:
+      required: true
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed ability
+      description: "Ability name, parameters, expected output"
+      value: |
+        **Name:** `module/ability-name`
+        **Parameters:**
+        **Returns:**
+    validations:
+      required: true
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Tier
+      options:
+        - Free (READ)
+        - Pro (WRITE/DELETE)
+        - Undecided
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Critical — blocks abilities-only workflow
+        - High — needed for alpha
+        - Medium — needed before public launch
+        - Low — nice to have
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Specs, related abilities, workarounds currently in use
