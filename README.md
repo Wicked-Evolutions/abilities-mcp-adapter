@@ -23,13 +23,32 @@ This plugin bundles the official `wordpress/mcp-adapter` Composer library and co
 
 All Composer dependencies are pre-bundled — no `composer install` needed.
 
-## Usage with SSH Bridge
+## Usage with MCP Bridge
 
-For remote access from AI tools like Claude Code, use the [MCP SSH Bridge](https://github.com/Influencentricity/mcp-ssh-bridge):
+For remote access from AI tools like Claude Code, use the [WP Abilities MCP](https://github.com/Influencentricity/wp-abilities-mcp) unified bridge:
 
-```bash
-node mcp-ssh-bridge.js --host=my-server --path=/var/www/html --user=wp_agent
+```json
+{
+  "mcpServers": {
+    "wordpress": {
+      "command": "node",
+      "args": ["/path/to/wp-abilities-mcp/wp-abilities-mcp.js"]
+    }
+  }
+}
 ```
+
+Supports both HTTP (primary) and SSH (legacy) transports with multi-site routing.
+
+## Validation Filter
+
+The plugin enables MCP tool validation by default:
+
+```php
+add_filter( 'mcp_adapter_validation_enabled', '__return_true' );
+```
+
+This ensures only abilities with valid JSON Schema are exposed as MCP tools. If tools are missing, check that ability schemas include proper `type` fields and that `type: "array"` properties have `items` definitions.
 
 ## How Abilities Become MCP Tools
 
@@ -42,7 +61,9 @@ Any ability with `'mcp' => array('public' => true, 'type' => 'tool')` in its `me
 
 ## Version
 
-**Current:** 2.0.0
+**Current:** 2.2.0
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## Author
 
