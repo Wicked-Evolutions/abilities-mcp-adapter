@@ -1,0 +1,83 @@
+--- a/includes/Transport/Infrastructure/SessionManager.php	2026-03-05 15:38:28
++++ b/includes/Transport/Infrastructure/SessionManager.php	2026-03-05 15:40:05
+@@ -26,54 +26,36 @@
+ 	private const SESSION_META_KEY = 'mcp_adapter_sessions';
+ 
+ 	/**
+-	 * Transient key prefix for per-user session write locks.
++	 * Lock TTL in seconds. Used as GET_LOCK timeout.
++	 * Short enough to self-heal on crash.
+ 	 *
+-	 * @var string
+-	 */
+-	private const LOCK_KEY_PREFIX = 'mcp_session_lock_';
+-
+-	/**
+-	 * Lock TTL in seconds. Short enough to self-heal on crash.
+-	 *
+ 	 * @var int
+ 	 */
+ 	private const LOCK_TTL = 5;
+ 
+ 	/**
+-	 * Maximum attempts to acquire the write lock before giving up.
++	 * Acquire a per-user write lock using MySQL GET_LOCK().
+ 	 *
+-	 * @var int
+-	 */
+-	private const LOCK_MAX_ATTEMPTS = 10;
+-
+-	/**
+-	 * Acquire a per-user write lock using WordPress transients.
++	 * GET_LOCK is truly atomic at the database kernel level — no TOCTOU
++	 * race condition possible. The lock is automatically released when the
++	 * database connection closes, providing crash safety.
+ 	 *
+-	 * Uses set_transient with a check-before-set pattern backed by
+-	 * the object cache's atomic `add` when available, or the options
+-	 * table `INSERT IGNORE` otherwise — both are safe against races.
++	 * This replaces the previous transient-based locking which used a
++	 * get_transient/set_transient pattern that was vulnerable to race
++	 * conditions on shared hosting without a persistent object cache.
+ 	 *
+ 	 * @param int $user_id The user ID to lock for.
+ 	 *
+ 	 * @return bool True if lock acquired, false on timeout.
+ 	 */
+ 	private static function acquire_lock( int $user_id ): bool {
+-		$key = self::LOCK_KEY_PREFIX . $user_id;
+-
+-		for ( $i = 0; $i < self::LOCK_MAX_ATTEMPTS; $i++ ) {
+-			// set_transient returns false if the key already exists (in persistent cache).
+-			// For the DB-backed fallback we set a short TTL; worst case the lock expires in LOCK_TTL seconds.
+-			if ( false === get_transient( $key ) ) {
+-				set_transient( $key, 1, self::LOCK_TTL );
+-
+-				return true;
+-			}
+-
+-			// Brief sleep between attempts: 10–50 ms to back off without blocking long.
+-			usleep( random_int( 10000, 50000 ) );
+-		}
++		global $wpdb;
++		$lock_name = 'mcp_session_' . $user_id;
++		$result    = $wpdb->get_var(
++			$wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock_name, self::LOCK_TTL )
++		);
+ 
+-		return false;
++		return '1' === $result;
+ 	}
+ 
+ 	/**
+@@ -84,7 +66,9 @@
+ 	 * @return void
+ 	 */
+ 	private static function release_lock( int $user_id ): void {
+-		delete_transient( self::LOCK_KEY_PREFIX . $user_id );
++		global $wpdb;
++		$lock_name = 'mcp_session_' . $user_id;
++		$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+ 	}
+ 
+ 	/**
