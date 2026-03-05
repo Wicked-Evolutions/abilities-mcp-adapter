@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.2.1] - 2026-03-05
+
+### Added
+- `patches/session-manager-get-lock.patch` — tracked patch file for MySQL GET_LOCK session locking
+- `patches/README.md` — rationale, apply/reverse instructions, upstream status
+
+### Fixed
+- Cleaned inactive adapter copies from servers (hostinger-ai-assistant, wp-mcp-adapter)
+- Cleaned orphaned `mcp_session_lock_*` transients from wp_options
+
+### Changed
+- Dead constants removed in patch: `LOCK_KEY_PREFIX`, `LOCK_MAX_ATTEMPTS` (unused after GET_LOCK migration)
+
+---
+
 ## [2.2.0] - 2026-02-26
 
 ### Security (Opus review — session fixation, metadata leakage, race conditions)
