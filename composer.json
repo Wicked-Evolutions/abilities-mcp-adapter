@@ -1,15 +1,24 @@
 {
     "name": "influencentricity/mcp-adapter-for-wordpress",
-    "description": "Packages the official WordPress MCP Adapter as an installable plugin with automatic ability discovery.",
+    "description": "MCP Adapter for WordPress — exposes WordPress abilities as MCP tools, resources, and prompts.",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
+    "autoload": {
+        "psr-4": {
+            "WickedEvolutions\\McpAdapter\\": "src/"
+        }
+    },
     "require": {
-        "wordpress/mcp-adapter": "^0.4.0",
-        "automattic/jetpack-autoloader": "^5.0"
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "yoast/phpunit-polyfills": "^2.0",
+        "phpunit/phpunit": "^9.6"
+    },
+    "scripts": {
+        "test": "phpunit"
     },
     "config": {
-        "allow-plugins": {
-            "automattic/jetpack-autoloader": true
-        }
+        "allow-plugins": {}
     }
 }

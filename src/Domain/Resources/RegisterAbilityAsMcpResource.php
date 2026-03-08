@@ -1,0 +1,203 @@
+<?php
+/**
+ * RegisterAbilityAsMcpResource class for converting WordPress abilities to MCP resources.
+ *
+ * @package WickedEvolutions\McpAdapter
+ */
+
+declare( strict_types=1 );
+
+namespace WickedEvolutions\McpAdapter\Domain\Resources;
+
+use WickedEvolutions\McpAdapter\Core\McpServer;
+use WickedEvolutions\McpAdapter\Domain\Utils\McpAnnotationMapper;
+use WP_Ability;
+
+/**
+ * Converts WordPress abilities to MCP resources according to the specification.
+ *
+ * This class extracts resource URI and other properties from ability metadata.
+ * The ability meta must contain a 'uri' field with the resource URI.
+ *
+ * Example ability meta structure:
+ * array(
+ *     'uri' => 'WordPress://mcp-adapter/my-resource',
+ *     'mimeType' => 'text/plain',
+ *     'annotations' => array(...)
+ * )
+ */
+class RegisterAbilityAsMcpResource {
+	/**
+	 * The WordPress ability instance.
+	 *
+	 * @var \WP_Ability
+	 */
+	private WP_Ability $ability;
+
+	/**
+	 * The MCP server.
+	 *
+	 * @var \WickedEvolutions\McpAdapter\Core\McpServer
+	 */
+	private McpServer $mcp_server;
+
+	/**
+	 * Make a new instance of the class.
+	 *
+	 * @param \WP_Ability            $ability    The ability.
+	 * @param \WickedEvolutions\McpAdapter\Core\McpServer $mcp_server The MCP server.
+	 *
+	 * @return \WickedEvolutions\McpAdapter\Domain\Resources\McpResource|\WP_Error Returns resource instance or WP_Error if validation fails.
+	 */
+	public static function make( WP_Ability $ability, McpServer $mcp_server ) {
+		$resource = new self( $ability, $mcp_server );
+
+		return $resource->get_resource();
+	}
+
+	/**
+	 * Constructor.
+	 *
+	 * @param \WP_Ability            $ability    The ability.
+	 * @param \WickedEvolutions\McpAdapter\Core\McpServer $mcp_server The MCP server.
+	 */
+	private function __construct( WP_Ability $ability, McpServer $mcp_server ) {
+		$this->mcp_server = $mcp_server;
+		$this->ability    = $ability;
+	}
+
+	/**
+	 * Get the resource URI.
+	 *
+	 * @return string|\WP_Error URI string or WP_Error if not found in ability meta.
+	 */
+	public function get_uri() {
+		$ability_meta = $this->ability->get_meta();
+
+			// First try to get URI from ability meta and normalize whitespace.
+		if ( isset( $ability_meta['uri'] ) && is_string( $ability_meta['uri'] ) ) {
+			$uri = trim( $ability_meta['uri'] );
+			if ( '' !== $uri ) {
+				return $uri;
+			}
+		}
+
+		// If not found in meta, return error since URI should be provided in ability meta
+		return new \WP_Error(
+			'resource_uri_not_found',
+			sprintf(
+				"Resource URI not found in ability meta for '%s'. URI must be provided in ability meta data.",
+				$this->ability->get_name()
+			)
+		);
+	}
+
+	/**
+	 * Get the MCP resource data array.
+	 *
+	 * @return array<string,mixed>|\WP_Error Resource data array or WP_Error if URI is not found.
+	 */
+	private function get_data() {
+		$uri = $this->get_uri();
+		if ( is_wp_error( $uri ) ) {
+			return $uri;
+		}
+
+		$resource_data = array(
+			'ability' => $this->ability->get_name(),
+			'uri'     => $uri,
+		);
+
+		// Add optional name from ability label
+		$label = trim( $this->ability->get_label() );
+		if ( ! empty( $label ) ) {
+			$resource_data['name'] = $label;
+		}
+
+		// Add optional description
+		$description = trim( $this->ability->get_description() );
+		if ( ! empty( $description ) ) {
+			$resource_data['description'] = $description;
+		}
+
+		// Do NOT load content at registration time — content is fetched on-demand in resources/read
+		// after permission checks. Loading here would eagerly execute abilities and expose content
+		// via resources/list without any permission enforcement.
+		// MIME type is read from meta only (static metadata, not dynamic content).
+		$ability_meta = $this->ability->get_meta();
+		if ( isset( $ability_meta['mimeType'] ) && is_string( $ability_meta['mimeType'] ) ) {
+			$resource_data['mimeType'] = $ability_meta['mimeType'];
+		}
+
+		// Map annotations from ability meta to MCP format using unified mapper.
+		// Re-use $ability_meta already fetched above.
+		$annotations = $ability_meta['annotations'] ?? array();
+
+		// Inject top-level category if not explicitly set in annotations.
+		if ( ! isset( $annotations['category'] ) ) {
+			$annotations['category'] = $this->ability->get_category();
+		}
+
+		// Inject tier from meta if not explicitly set in annotations.
+		if ( ! isset( $annotations['tier'] ) && isset( $ability_meta['tier'] ) ) {
+			$annotations['tier'] = $ability_meta['tier'];
+		}
+
+		// Inject bridge_hints from meta if not explicitly set in annotations.
+		if ( ! isset( $annotations['bridge_hints'] ) && isset( $ability_meta['bridge_hints'] ) ) {
+			$annotations['bridge_hints'] = $ability_meta['bridge_hints'];
+		}
+
+		if ( ! empty( $annotations ) && is_array( $annotations ) ) {
+			$mcp_annotations = McpAnnotationMapper::map( $annotations, 'resource' );
+			if ( ! empty( $mcp_annotations ) ) {
+				$resource_data['annotations'] = $mcp_annotations;
+			}
+		}
+
+		return $resource_data;
+	}
+
+	/**
+	 * Get resource content from the ability.
+	 * This method should be implemented based on how abilities provide resource content.
+	 *
+	 * @return array<string,mixed> Array with 'text', 'blob', and/or 'mimeType' keys
+	 */
+	private function get_ability_content(): array {
+		// @todo: Probably this can be improved so it will not be loaded when the resource list is called
+		$content = array();
+
+		// Check if ability has resource content methods
+		if ( method_exists( $this->ability, 'get_resource_content' ) ) {
+			$resource_content = call_user_func( array( $this->ability, 'get_resource_content' ) );
+			if ( is_array( $resource_content ) ) {
+				return $resource_content;
+			}
+		}
+
+		// Fallback: try to get content from ability description as text
+		$description = $this->ability->get_description();
+		if ( ! empty( $description ) ) {
+			$content['text']     = $description;
+			$content['mimeType'] = 'text/plain';
+		}
+
+		return $content;
+	}
+
+	/**
+	 * Get the MCP resource instance.
+	 * Uses the centralized McpResourceValidator for consistent validation.
+	 *
+	 * @return \WickedEvolutions\McpAdapter\Domain\Resources\McpResource|\WP_Error Returns the MCP resource instance or WP_Error if validation fails.
+	 */
+	private function get_resource() {
+		$data = $this->get_data();
+		if ( is_wp_error( $data ) ) {
+			return $data;
+		}
+
+		return McpResource::from_array( $data, $this->mcp_server );
+	}
+}

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MCP Adapter for WordPress
  * Plugin URI:  https://github.com/Influencentricity/mcp-adapter-for-wordpress
- * Description: Packages the official WordPress MCP Adapter as an installable plugin with automatic ability discovery. Upload, activate, and your WordPress abilities become MCP tools.
+ * Description: Exposes WordPress abilities as MCP tools, resources, and prompts. Upload, activate, and your WordPress abilities become MCP tools.
  * Version:     2.3.0
  * Author:      Influencentricity
  * Author URI:  https://influencentricity.com
@@ -13,14 +13,16 @@
 
 defined( 'ABSPATH' ) || exit;
 
-if ( file_exists( plugin_dir_path( __FILE__ ) . 'vendor/autoload_packages.php' ) ) {
-	require_once plugin_dir_path( __FILE__ ) . 'vendor/autoload_packages.php';
+// Composer PSR-4 autoloader.
+$autoloader = plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
+if ( file_exists( $autoloader ) ) {
+	require_once $autoloader;
 } else {
-	error_log( 'MCP Adapter: Composer dependencies not found. Run composer install.' );
+	error_log( 'MCP Adapter: Composer autoloader not found. Run composer install.' );
 	return;
 }
 
-use WP\MCP\Core\McpAdapter;
+use WickedEvolutions\McpAdapter\Core\McpAdapter;
 
 // Enable MCP tool validation — silently drops invalid tools instead of breaking all tools.
 add_filter( 'mcp_adapter_validation_enabled', '__return_true' );
