@@ -130,29 +130,9 @@ class RegisterAbilityAsMcpResource {
 		}
 
 		// Map annotations from ability meta to MCP format using unified mapper.
-		// Re-use $ability_meta already fetched above.
-		$annotations = $ability_meta['annotations'] ?? array();
-
-		// Inject top-level category if not explicitly set in annotations.
-		if ( ! isset( $annotations['category'] ) ) {
-			$annotations['category'] = $this->ability->get_category();
-		}
-
-		// Inject tier from meta if not explicitly set in annotations.
-		if ( ! isset( $annotations['tier'] ) && isset( $ability_meta['tier'] ) ) {
-			$annotations['tier'] = $ability_meta['tier'];
-		}
-
-		// Inject bridge_hints from meta if not explicitly set in annotations.
-		if ( ! isset( $annotations['bridge_hints'] ) && isset( $ability_meta['bridge_hints'] ) ) {
-			$annotations['bridge_hints'] = $ability_meta['bridge_hints'];
-		}
-
-		if ( ! empty( $annotations ) && is_array( $annotations ) ) {
-			$mcp_annotations = McpAnnotationMapper::map( $annotations, 'resource' );
-			if ( ! empty( $mcp_annotations ) ) {
-				$resource_data['annotations'] = $mcp_annotations;
-			}
+		$mcp_annotations = McpAnnotationMapper::build_from_ability( $this->ability, 'resource' );
+		if ( ! empty( $mcp_annotations ) ) {
+			$resource_data['annotations'] = $mcp_annotations;
 		}
 
 		return $resource_data;

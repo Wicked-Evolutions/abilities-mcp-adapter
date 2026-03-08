@@ -113,29 +113,9 @@ class RegisterAbilityAsMcpPrompt {
 		}
 
 		// Map annotations from ability meta to MCP format using unified mapper.
-		$ability_meta = $this->ability->get_meta();
-		$annotations  = $ability_meta['annotations'] ?? array();
-
-		// Inject top-level category if not explicitly set in annotations.
-		if ( ! isset( $annotations['category'] ) ) {
-			$annotations['category'] = $this->ability->get_category();
-		}
-
-		// Inject tier from meta if not explicitly set in annotations.
-		if ( ! isset( $annotations['tier'] ) && isset( $ability_meta['tier'] ) ) {
-			$annotations['tier'] = $ability_meta['tier'];
-		}
-
-		// Inject bridge_hints from meta if not explicitly set in annotations.
-		if ( ! isset( $annotations['bridge_hints'] ) && isset( $ability_meta['bridge_hints'] ) ) {
-			$annotations['bridge_hints'] = $ability_meta['bridge_hints'];
-		}
-
-		if ( ! empty( $annotations ) && is_array( $annotations ) ) {
-			$mcp_annotations = McpAnnotationMapper::map( $annotations, 'prompt' );
-			if ( ! empty( $mcp_annotations ) ) {
-				$prompt_data['annotations'] = $mcp_annotations;
-			}
+		$mcp_annotations = McpAnnotationMapper::build_from_ability( $this->ability, 'prompt' );
+		if ( ! empty( $mcp_annotations ) ) {
+			$prompt_data['annotations'] = $mcp_annotations;
 		}
 
 		return $prompt_data;

@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace WickedEvolutions\McpAdapter\Servers;
 
 use WickedEvolutions\McpAdapter\Core\McpAdapter;
+use WickedEvolutions\McpAdapter\Core\McpServerConfig;
 use WickedEvolutions\McpAdapter\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler;
 use WickedEvolutions\McpAdapter\Infrastructure\Observability\NullMcpObservabilityHandler;
 use WickedEvolutions\McpAdapter\Transport\HttpTransport;
@@ -69,22 +70,10 @@ class DefaultServerFactory {
 		}
 		$config = wp_parse_args( $config, $wordpress_defaults );
 
-		// Use McpAdapter to create the server with full validation
-		$adapter = McpAdapter::instance();
-		$result  = $adapter->create_server(
-			$config['server_id'],
-			$config['server_route_namespace'],
-			$config['server_route'],
-			$config['server_name'],
-			$config['server_description'],
-			$config['server_version'],
-			$config['mcp_transports'],
-			$config['error_handler'],
-			$config['observability_handler'],
-			$config['tools'],
-			$config['resources'],
-			$config['prompts']
-		);
+		// Use McpAdapter to create the server with full validation.
+		$adapter       = McpAdapter::instance();
+		$server_config = McpServerConfig::from_array( $config );
+		$result        = $adapter->create_server_from_config( $server_config );
 
 		// Log error if server creation failed, but don't halt execution.
 		// This allows other servers to be registered even if default server fails.

@@ -9,7 +9,6 @@ declare( strict_types=1 );
 
 namespace WickedEvolutions\McpAdapter\Domain\Tools;
 
-use WickedEvolutions\McpAdapter\Admin\PermissionManager;
 use WickedEvolutions\McpAdapter\Core\McpServer;
 use WickedEvolutions\McpAdapter\Domain\Utils\McpAnnotationMapper;
 use WickedEvolutions\McpAdapter\Domain\Utils\SchemaTransformer;
@@ -99,35 +98,9 @@ class RegisterAbilityAsMcpTool {
 		}
 
 		// Map annotations from ability meta to MCP format using unified mapper.
-		$ability_meta = $this->ability->get_meta();
-		$annotations  = $ability_meta['annotations'] ?? array();
-
-		// Inject top-level category if not explicitly set in annotations.
-		if ( ! isset( $annotations['category'] ) ) {
-			$annotations['category'] = $this->ability->get_category();
-		}
-
-		// Inject tier from meta if not explicitly set in annotations.
-		if ( ! isset( $annotations['tier'] ) && isset( $ability_meta['tier'] ) ) {
-			$annotations['tier'] = $ability_meta['tier'];
-		}
-
-		// Inject bridge_hints from meta if not explicitly set in annotations.
-		if ( ! isset( $annotations['bridge_hints'] ) && isset( $ability_meta['bridge_hints'] ) ) {
-			$annotations['bridge_hints'] = $ability_meta['bridge_hints'];
-		}
-
-		// Inject permission level derived from annotations or explicit metadata.
-		$annotations['permission'] = PermissionManager::get_permission( $this->ability );
-
-		// Inject enabled state from admin settings.
-		$annotations['enabled'] = PermissionManager::is_enabled( $this->ability->get_name() );
-
-		if ( ! empty( $annotations ) && is_array( $annotations ) ) {
-			$mcp_annotations = McpAnnotationMapper::map( $annotations, 'tool' );
-			if ( ! empty( $mcp_annotations ) ) {
-				$tool_data['annotations'] = $mcp_annotations;
-			}
+		$mcp_annotations = McpAnnotationMapper::build_from_ability( $this->ability, 'tool' );
+		if ( ! empty( $mcp_annotations ) ) {
+			$tool_data['annotations'] = $mcp_annotations;
 		}
 
 		// Set annotations.title from label if annotations exist but don't have a title.

@@ -9,6 +9,8 @@ declare( strict_types=1 );
 
 namespace WickedEvolutions\McpAdapter\Domain\Utils;
 
+use WickedEvolutions\McpAdapter\Admin\PermissionManager;
+
 /**
  * Utility class for mapping WordPress ability annotations to MCP Annotations format.
  *
@@ -99,6 +101,51 @@ class McpAnnotationMapper {
 			'ability_property' => 'enabled',
 		),
 	);
+
+	/**
+	 * Build MCP annotations from a WordPress ability.
+	 *
+	 * Consolidates the annotation injection logic previously duplicated in
+	 * RegisterAbilityAsMcpTool, RegisterAbilityAsMcpResource, and RegisterAbilityAsMcpPrompt.
+	 *
+	 * Injects: category, tier, bridge_hints, permission, enabled.
+	 *
+	 * @param \WP_Ability $ability      The WordPress ability.
+	 * @param string      $feature_type The MCP feature type ('tool', 'resource', or 'prompt').
+	 *
+	 * @return array Mapped MCP annotations, or empty array if none.
+	 */
+	public static function build_from_ability( \WP_Ability $ability, string $feature_type ): array {
+		$ability_meta = $ability->get_meta();
+		$annotations  = $ability_meta['annotations'] ?? array();
+
+		// Inject top-level category if not explicitly set in annotations.
+		if ( ! isset( $annotations['category'] ) ) {
+			$annotations['category'] = $ability->get_category();
+		}
+
+		// Inject tier from meta if not explicitly set in annotations.
+		if ( ! isset( $annotations['tier'] ) && isset( $ability_meta['tier'] ) ) {
+			$annotations['tier'] = $ability_meta['tier'];
+		}
+
+		// Inject bridge_hints from meta if not explicitly set in annotations.
+		if ( ! isset( $annotations['bridge_hints'] ) && isset( $ability_meta['bridge_hints'] ) ) {
+			$annotations['bridge_hints'] = $ability_meta['bridge_hints'];
+		}
+
+		// Inject permission level derived from annotations or explicit metadata.
+		$annotations['permission'] = PermissionManager::get_permission( $ability );
+
+		// Inject enabled state from admin settings.
+		$annotations['enabled'] = PermissionManager::is_enabled( $ability->get_name() );
+
+		if ( empty( $annotations ) || ! is_array( $annotations ) ) {
+			return array();
+		}
+
+		return self::map( $annotations, $feature_type );
+	}
 
 	/**
 	 * Map WordPress ability annotation property names to MCP field names.

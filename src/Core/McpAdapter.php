@@ -87,7 +87,36 @@ final class McpAdapter {
 	}
 
 	/**
+	 * Create and register a new MCP server from a config object.
+	 *
+	 * Preferred over create_server() — accepts a single McpServerConfig instead of 13 parameters.
+	 *
+	 * @param \WickedEvolutions\McpAdapter\Core\McpServerConfig $config Server configuration.
+	 *
+	 * @return \WickedEvolutions\McpAdapter\Core\McpAdapter|\WP_Error McpAdapter instance on success, WP_Error on failure.
+	 */
+	public function create_server_from_config( McpServerConfig $config ) {
+		return $this->create_server(
+			$config->get_server_id(),
+			$config->get_server_route_namespace(),
+			$config->get_server_route(),
+			$config->get_server_name(),
+			$config->get_server_description(),
+			$config->get_server_version(),
+			$config->get_mcp_transports(),
+			$config->get_error_handler(),
+			$config->get_observability_handler(),
+			$config->get_tools(),
+			$config->get_resources(),
+			$config->get_prompts(),
+			$config->get_transport_permission_callback()
+		);
+	}
+
+	/**
 	 * Create and register a new MCP server.
+	 *
+	 * @deprecated Use create_server_from_config() with McpServerConfig for cleaner API.
 	 *
 	 * @param string $server_id Unique identifier for the server.
 	 * @param string $server_route_namespace Server route namespace.
