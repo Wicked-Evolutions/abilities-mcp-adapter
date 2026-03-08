@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace WickedEvolutions\McpAdapter\Handlers\Tools;
 
+use WickedEvolutions\McpAdapter\Admin\PermissionManager;
 use WickedEvolutions\McpAdapter\Core\McpServer;
 use WickedEvolutions\McpAdapter\Domain\Tools\McpTool;
 use WickedEvolutions\McpAdapter\Handlers\HandlerHelperTrait;
@@ -299,6 +300,34 @@ class ToolsHandler {
 					'tool_name'      => $tool_name,
 					'failure_reason' => 'ability_retrieval_failed',
 					'error_code'     => $ability->get_error_code(),
+				),
+			);
+		}
+
+		// Check if the ability is disabled by admin settings.
+		if ( ! PermissionManager::is_enabled( $ability->get_name() ) ) {
+			$permission = PermissionManager::get_permission( $ability );
+
+			return array(
+				'error'     => array(
+					'message' => sprintf(
+						'Ability "%s" is disabled. It requires "%s" permission. Enable it in Settings → MCP Abilities.',
+						$ability->get_name(),
+						$permission
+					),
+					'data'    => array(
+						'error'      => 'permission_required',
+						'permission' => $permission,
+						'ability'    => $ability->get_name(),
+						'enabled'    => false,
+					),
+				),
+				'_metadata' => array(
+					'component_type' => 'tool',
+					'tool_name'      => $tool_name,
+					'ability_name'   => $ability->get_name(),
+					'failure_reason' => 'ability_disabled',
+					'permission'     => $permission,
 				),
 			);
 		}

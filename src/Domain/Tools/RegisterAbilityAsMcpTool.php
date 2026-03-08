@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace WickedEvolutions\McpAdapter\Domain\Tools;
 
+use WickedEvolutions\McpAdapter\Admin\PermissionManager;
 use WickedEvolutions\McpAdapter\Core\McpServer;
 use WickedEvolutions\McpAdapter\Domain\Utils\McpAnnotationMapper;
 use WickedEvolutions\McpAdapter\Domain\Utils\SchemaTransformer;
@@ -115,6 +116,12 @@ class RegisterAbilityAsMcpTool {
 		if ( ! isset( $annotations['bridge_hints'] ) && isset( $ability_meta['bridge_hints'] ) ) {
 			$annotations['bridge_hints'] = $ability_meta['bridge_hints'];
 		}
+
+		// Inject permission level derived from annotations or explicit metadata.
+		$annotations['permission'] = PermissionManager::get_permission( $this->ability );
+
+		// Inject enabled state from admin settings.
+		$annotations['enabled'] = PermissionManager::is_enabled( $this->ability->get_name() );
 
 		if ( ! empty( $annotations ) && is_array( $annotations ) ) {
 			$mcp_annotations = McpAnnotationMapper::map( $annotations, 'tool' );

@@ -11,6 +11,7 @@ declare(strict_types = 1);
 
 namespace WickedEvolutions\McpAdapter;
 
+use WickedEvolutions\McpAdapter\Admin\AbilitySettingsPage;
 use WickedEvolutions\McpAdapter\Core\McpAdapter;
 
 /**
@@ -55,6 +56,11 @@ final class Plugin {
 		}
 
 		McpAdapter::instance();
+
+		// Register admin settings page for ability permissions.
+		if ( is_admin() ) {
+			AbilitySettingsPage::register();
+		}
 	}
 
 	/**

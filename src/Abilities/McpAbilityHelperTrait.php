@@ -19,8 +19,9 @@ trait McpAbilityHelperTrait {
 	/**
 	 * Checks if ability is publicly exposed via MCP.
 	 *
-	 * Validates against the ability's mcp.public metadata flag.
-	 * Only abilities with mcp.public=true are accessible via default MCP server.
+	 * Discovery gate priority (XP5):
+	 * 1. `show_in_rest` ability property (WordPress core standard)
+	 * 2. `mcp.public` metadata flag (backward compatibility fallback)
 	 *
 	 * @param string $ability_name The ability name to check.
 	 *
@@ -33,13 +34,10 @@ trait McpAbilityHelperTrait {
 			return new \WP_Error( 'ability_not_found', "Ability '{$ability_name}' not found" );
 		}
 
-		$meta          = $ability->get_meta();
-		$is_public_mcp = $meta['mcp']['public'] ?? false;
-
-		if ( ! $is_public_mcp ) {
+		if ( ! self::is_ability_mcp_public( $ability ) ) {
 			return new \WP_Error(
 				'ability_not_public_mcp',
-				sprintf( 'Ability "%s" is not exposed via MCP (mcp.public!=true)', $ability_name )
+				sprintf( 'Ability "%s" is not exposed via MCP', $ability_name )
 			);
 		}
 
@@ -49,14 +47,24 @@ trait McpAbilityHelperTrait {
 	/**
 	 * Checks if ability is publicly exposed via MCP (simple boolean version).
 	 *
-	 * This is a simplified version that returns only boolean values,
-	 * useful for filtering operations where WP_Error handling isn't needed.
+	 * Discovery gate priority (XP5):
+	 * 1. `show_in_rest` ability property (WordPress core standard)
+	 * 2. `mcp.public` metadata flag (backward compatibility fallback)
 	 *
 	 * @param \WP_Ability $ability The ability object to check.
 	 *
 	 * @return bool True if publicly exposed, false otherwise.
 	 */
 	protected static function is_ability_mcp_public( \WP_Ability $ability ): bool {
+		// Primary gate: show_in_rest (WordPress core standard).
+		if ( method_exists( $ability, 'get_show_in_rest' ) ) {
+			$show_in_rest = $ability->get_show_in_rest();
+			if ( null !== $show_in_rest ) {
+				return (bool) $show_in_rest;
+			}
+		}
+
+		// Fallback: mcp.public metadata flag.
 		$meta = $ability->get_meta();
 		return (bool) ( $meta['mcp']['public'] ?? false );
 	}

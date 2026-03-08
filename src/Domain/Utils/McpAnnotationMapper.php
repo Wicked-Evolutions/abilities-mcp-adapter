@@ -88,6 +88,16 @@ class McpAnnotationMapper {
 			'features'         => array( 'tool' ),
 			'ability_property' => null,
 		),
+		'permission'      => array(
+			'type'             => 'string',
+			'features'         => array( 'tool', 'resource', 'prompt' ),
+			'ability_property' => 'permission',
+		),
+		'enabled'         => array(
+			'type'             => 'boolean',
+			'features'         => array( 'tool', 'resource', 'prompt' ),
+			'ability_property' => 'enabled',
+		),
 	);
 
 	/**

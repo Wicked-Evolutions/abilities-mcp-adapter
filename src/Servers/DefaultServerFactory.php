@@ -104,6 +104,31 @@ class DefaultServerFactory {
 	}
 
 	/**
+	 * Check if an ability is publicly exposed via MCP.
+	 *
+	 * Discovery gate priority (XP5):
+	 * 1. `show_in_rest` ability property (WordPress core standard)
+	 * 2. `mcp.public` metadata flag (backward compatibility fallback)
+	 *
+	 * @param \WP_Ability $ability The ability object.
+	 *
+	 * @return bool True if publicly exposed.
+	 */
+	private static function is_ability_mcp_public( \WP_Ability $ability ): bool {
+		// Primary gate: show_in_rest (WordPress core standard).
+		if ( method_exists( $ability, 'get_show_in_rest' ) ) {
+			$show_in_rest = $ability->get_show_in_rest();
+			if ( null !== $show_in_rest ) {
+				return (bool) $show_in_rest;
+			}
+		}
+
+		// Fallback: mcp.public metadata flag.
+		$meta = $ability->get_meta();
+		return (bool) ( $meta['mcp']['public'] ?? false );
+	}
+
+	/**
 	 * Discover abilities by MCP type.
 	 *
 	 * Scans all registered abilities and returns those with the specified type
@@ -121,8 +146,8 @@ class DefaultServerFactory {
 			$ability_name = $ability->get_name();
 			$meta         = $ability->get_meta();
 
-			// Skip if not publicly exposed
-			if ( ! ( $meta['mcp']['public'] ?? false ) ) {
+			// Skip if not publicly exposed (XP5: show_in_rest with mcp.public fallback).
+			if ( ! self::is_ability_mcp_public( $ability ) ) {
 				continue;
 			}
 

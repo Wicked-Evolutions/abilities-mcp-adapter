@@ -27,7 +27,7 @@ use WickedEvolutions\McpAdapter\Core\McpAdapter;
 // Enable MCP tool validation — silently drops invalid tools instead of breaking all tools.
 add_filter( 'mcp_adapter_validation_enabled', '__return_true' );
 
-// Configure the default MCP server to expose only abilities flagged mcp.public=true and mcp.type='tool'.
+// Configure the default MCP server: discovery gate (XP5) — show_in_rest with mcp.public fallback.
 add_filter( 'mcp_adapter_default_server_config', function( $config ) {
 	$tools = array(
 		'mcp-adapter/discover-abilities',
@@ -36,12 +36,23 @@ add_filter( 'mcp_adapter_default_server_config', function( $config ) {
 		'mcp-adapter/batch-execute',
 	);
 	foreach ( wp_get_abilities() as $name => $ability ) {
-		$meta = $ability->get_meta();
-		// Only expose abilities explicitly marked as public MCP tools.
-		if ( ! ( $meta['mcp']['public'] ?? false ) ) {
+		// Discovery gate (XP5): show_in_rest with mcp.public fallback.
+		$is_public = false;
+		if ( method_exists( $ability, 'get_show_in_rest' ) ) {
+			$show_in_rest = $ability->get_show_in_rest();
+			if ( null !== $show_in_rest ) {
+				$is_public = (bool) $show_in_rest;
+			}
+		}
+		if ( ! $is_public ) {
+			$meta      = $ability->get_meta();
+			$is_public = (bool) ( $meta['mcp']['public'] ?? false );
+		}
+		if ( ! $is_public ) {
 			continue;
 		}
 		// Default type is 'tool'; skip abilities registered as resources or prompts.
+		$meta = $ability->get_meta();
 		$type = $meta['mcp']['type'] ?? 'tool';
 		if ( 'tool' !== $type ) {
 			continue;
