@@ -1,61 +1,39 @@
 # Changelog
 
-## [2.3.0] - 2026-03-08
+## [1.0.0-alpha] - 2026-03-08
+
+First standalone release. Fully decoupled from upstream `wordpress/mcp-adapter` Composer
+package — all code lives under `WickedEvolutions\McpAdapter` namespace with PSR-4 autoloading.
 
 ### Added
-- `mcp-adapter/batch-execute` — 4th built-in tool for executing multiple MCP tools in a single round-trip
-- `McpErrorMapper` — centralized mapping of WordPress error codes to MCP error codes
-- Annotation injection: `category`, `tier`, and `bridge_hints` now flow from ability meta into MCP annotations for tools, resources, and prompts
-- `category` and `tier` fields in `discover-abilities` output schema and response
-- `category` field in `get-ability-info` output schema and response
-
-### Fixed
-- batch-execute wiring bug: plugin entry point filter omitted `mcp-adapter/batch-execute` from the tools list, making the tool invisible despite being registered
-- ToolsHandler error responses now use `McpErrorMapper` for consistent, structured MCP error codes instead of raw WP_Error pass-through
+- `McpServerConfig` immutable config object replacing 13-parameter God Constructor
+- `McpAnnotationMapper::build_from_ability()` — single method for annotation injection across tools, resources, and prompts
+- Permission metadata: per-ability `permission` (read/write/delete) and `enabled` state in MCP annotations
+- Admin settings page (Settings → MCP Abilities) for per-ability enable/disable controls
+- Discovery gate (XP5): abilities with `show_in_rest` or `meta.mcp.public` become MCP tools
+- `mcp-adapter/batch-execute` — 4th built-in tool for multi-tool single round-trip
+- `McpErrorMapper` — centralized WP_Error to MCP error code mapping
+- Annotation injection: `category`, `tier`, `bridge_hints` flow from ability meta into MCP annotations
+- 282 unit tests (PHPUnit) covering handlers, core classes, annotation mapping, schema transformation
 
 ### Changed
-- DefaultServerFactory tools list expanded from 3 to 4 built-in tools
-- McpAdapter `register_default_abilities()` now registers `BatchExecuteAbility`
+- Namespace: `WickedEvolutions\McpAdapter` (was `Jelix\McpAdapter`)
+- PHP requirement: 8.0+ (was 7.4)
+- WordPress requirement: 6.9+ (Abilities API)
+- All code owned — no Composer vendor dependency on upstream package
+- `create_server_from_config()` accepts `McpServerConfig` instead of 13 positional parameters
+
+### Removed
+- `composer.json` vendor dependency on `wordpress/mcp-adapter`
+- Vendor autoloader fallback — uses project's own PSR-4 autoloader
 
 ---
 
-## [2.2.1] - 2026-03-05
+## Pre-1.0 History
 
-### Added
-- `patches/session-manager-get-lock.patch` — tracked patch file for MySQL GET_LOCK session locking
-- `patches/README.md` — rationale, apply/reverse instructions, upstream status
-
-### Fixed
-- Cleaned inactive adapter copies from servers (hostinger-ai-assistant, wp-mcp-adapter)
-- Cleaned orphaned `mcp_session_lock_*` transients from wp_options
-
-### Changed
-- Dead constants removed in patch: `LOCK_KEY_PREFIX`, `LOCK_MAX_ATTEMPTS` (unused after GET_LOCK migration)
-
----
-
-## [2.2.0] - 2026-02-26
-
-### Security (Opus review — session fixation, metadata leakage, race conditions)
-- Session fixation prevention
-- Metadata leakage fixes
-- Race condition handling improvements
-
-### Changed
-- SessionManager upgraded with atomic locking (GET_LOCK) — deployed server-side
-
----
-
-## [2.1.0] - 2026-02-24
-
-### Security (Oracle review)
-- Security hardening pass on session management and input validation
-
-### Added
-- Initial public release with bundled `wordpress/mcp-adapter` v0.4.0
-- Automatic ability-to-tool discovery via `wp_get_abilities()`
-- MCP tool validation enabled by default
-- Three built-in discovery tools: discover-abilities, get-ability-info, execute-ability
+Versions 2.1.0–2.3.0 were wrapper releases around the upstream `wordpress/mcp-adapter`
+Composer package. The version numbers reflected the wrapper, not the underlying library.
+All functionality has been absorbed into the 1.0.0-alpha standalone codebase.
 
 ---
 

@@ -1,19 +1,22 @@
 # MCP Adapter for WordPress
 
-Packages the official WordPress MCP Adapter (`wordpress/mcp-adapter`) as a standard installable plugin. Upload, activate, and all your registered WordPress abilities automatically become MCP tools — zero configuration required.
+Converts WordPress abilities into MCP (Model Context Protocol) tools, resources, and prompts. Any ability registered via `wp_register_ability()` automatically becomes accessible to AI agents — zero configuration required.
 
-## What This Does
+## Features
 
-This plugin bundles the official `wordpress/mcp-adapter` Composer library and configures it to automatically discover and expose every ability registered via `wp_register_ability()` as an MCP tool. It also registers three built-in discovery tools:
-
-- `mcp-adapter/discover-abilities` — list all available abilities
-- `mcp-adapter/get-ability-info` — get schema and metadata for a specific ability
-- `mcp-adapter/execute-ability` — execute an ability with input parameters
+- **Automatic discovery** — abilities with `show_in_rest` or `mcp.public` metadata become MCP tools
+- **4 built-in tools** — discover abilities, get info, execute, and batch execute
+- **Permission metadata** — abilities carry `permission` (read/write/delete) and `enabled` state
+- **Admin settings** — Settings → MCP Abilities page for per-ability enable/disable controls
+- **MCP annotations** — readonly, destructive, idempotent hints flow through to tool definitions
+- **Schema transformation** — JSON Schema to MCP-compatible format with automatic wrapping
+- **Error mapping** — WP_Error objects map cleanly to MCP error codes
+- **HTTP transport** — REST API endpoint with session management
 
 ## Requirements
 
-- WordPress 6.9+ (Abilities API in core)
-- PHP 7.4+
+- WordPress 6.9+ (Abilities API)
+- PHP 8.0+
 
 ## Installation
 
@@ -21,11 +24,44 @@ This plugin bundles the official `wordpress/mcp-adapter` Composer library and co
 2. Go to Plugins → Add New → Upload Plugin
 3. Upload and activate
 
-All Composer dependencies are pre-bundled — no `composer install` needed.
+## Built-in Tools
+
+| Tool | Description |
+|------|-------------|
+| `mcp-adapter-discover-abilities` | List all available abilities with category and tier |
+| `mcp-adapter-get-ability-info` | Get schema and metadata for a specific ability |
+| `mcp-adapter-execute-ability` | Execute an ability with input parameters |
+| `mcp-adapter-batch-execute` | Execute multiple abilities in a single request (max 20) |
+
+## Permission Metadata
+
+Each ability carries permission metadata in its MCP annotations:
+
+- **`permission`** — `read`, `write`, or `delete`, derived from ability annotations
+- **`enabled`** — boolean, controlled via Settings → MCP Abilities
+
+When a disabled ability is called, the adapter returns a structured error:
+
+```json
+{
+  "error": "permission_required",
+  "permission": "write",
+  "ability": "content/create",
+  "enabled": false
+}
+```
+
+## How Abilities Become MCP Tools
+
+Abilities are exposed as MCP tools when either:
+1. `show_in_rest` is set to `true` on the ability (WordPress 6.9+ standard)
+2. `meta.mcp.public` is `true` (fallback for older registrations)
+
+The adapter reads `input_schema` and `output_schema` to generate MCP-compatible definitions, and maps annotations like `readonly`, `destructive`, and `idempotent` to MCP hint fields.
 
 ## Usage with MCP Bridge
 
-For remote access from AI tools like Claude Code, use the [WP Abilities MCP](https://github.com/Influencentricity/wp-abilities-mcp) unified bridge:
+For remote access from AI tools like Claude Code, use the [WP Abilities MCP](https://github.com/Influencentricity/wp-abilities-mcp) bridge:
 
 ```json
 {
@@ -38,30 +74,35 @@ For remote access from AI tools like Claude Code, use the [WP Abilities MCP](htt
 }
 ```
 
-Supports both HTTP (primary) and SSH (legacy) transports with multi-site routing.
-
-## Validation Filter
-
-The plugin enables MCP tool validation by default:
+## Creating Custom MCP Servers
 
 ```php
-add_filter( 'mcp_adapter_validation_enabled', '__return_true' );
+add_action( 'mcp_adapter_init', function( $adapter ) {
+    $config = McpServerConfig::from_array([
+        'server_id'              => 'my-server',
+        'server_route_namespace' => 'my-plugin/v1',
+        'server_route'           => 'mcp',
+        'server_name'            => 'My MCP Server',
+        'server_description'     => 'Custom MCP server',
+        'server_version'         => '1.0.0',
+        'mcp_transports'         => [ HttpTransport::class ],
+        'tools'                  => [ 'my-plugin/my-tool' ],
+    ]);
+    $adapter->create_server_from_config( $config );
+});
 ```
 
-This ensures only abilities with valid JSON Schema are exposed as MCP tools. If tools are missing, check that ability schemas include proper `type` fields and that `type: "array"` properties have `items` definitions.
+## Naming Lineage
 
-## How Abilities Become MCP Tools
+This plugin was originally a thin wrapper around `wordpress/mcp-adapter` (Composer package). It has been fully decoupled and is now a standalone codebase under the `WickedEvolutions\McpAdapter` namespace. The upstream package is credited but no longer a dependency.
 
-Any ability with `'mcp' => array('public' => true, 'type' => 'tool')` in its `meta` array is automatically included in the MCP server's tool list. The adapter reads the ability's `input_schema` and `output_schema` to generate MCP-compatible tool definitions.
+## `wpab__` Resolver vs MCP Adapter
 
-## Bundled Dependencies
-
-- `wordpress/mcp-adapter: ^0.4.0` — official MCP protocol handler
-- `automattic/jetpack-autoloader: ^5.0` — classmap autoloader
+WordPress core (WP 7.0+) includes `WP_AI_Client_Ability_Function_Resolver` which converts abilities to AI tool calls with a `wpab__` prefix. This is designed for the `@wordpress/abilities` JS client. The MCP Adapter provides a different mapping — full MCP protocol compliance with annotations, session management, and multi-transport support. Both approaches coexist; the MCP Adapter is for external AI agent access, the `wpab__` resolver is for WordPress's built-in AI client.
 
 ## Version
 
-**Current:** 2.2.0
+**Current:** 1.0.0-alpha
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
