@@ -3,7 +3,7 @@
  * Plugin Name: MCP Adapter for WordPress
  * Plugin URI:  https://github.com/Influencentricity/mcp-adapter-for-wordpress
  * Description: Packages the official WordPress MCP Adapter as an installable plugin with automatic ability discovery. Upload, activate, and your WordPress abilities become MCP tools.
- * Version:     2.2.0
+ * Version:     2.3.0
  * Author:      Influencentricity
  * Author URI:  https://influencentricity.com
  * License:     GPL-2.0-or-later
@@ -31,6 +31,7 @@ add_filter( 'mcp_adapter_default_server_config', function( $config ) {
 		'mcp-adapter/discover-abilities',
 		'mcp-adapter/get-ability-info',
 		'mcp-adapter/execute-ability',
+		'mcp-adapter/batch-execute',
 	);
 	foreach ( wp_get_abilities() as $name => $ability ) {
 		$meta = $ability->get_meta();

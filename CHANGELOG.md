@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.3.0] - 2026-03-08
+
+### Added
+- `mcp-adapter/batch-execute` — 4th built-in tool for executing multiple MCP tools in a single round-trip
+- `McpErrorMapper` — centralized mapping of WordPress error codes to MCP error codes
+- Annotation injection: `category`, `tier`, and `bridge_hints` now flow from ability meta into MCP annotations for tools, resources, and prompts
+- `category` and `tier` fields in `discover-abilities` output schema and response
+- `category` field in `get-ability-info` output schema and response
+
+### Fixed
+- batch-execute wiring bug: plugin entry point filter omitted `mcp-adapter/batch-execute` from the tools list, making the tool invisible despite being registered
+- ToolsHandler error responses now use `McpErrorMapper` for consistent, structured MCP error codes instead of raw WP_Error pass-through
+
+### Changed
+- DefaultServerFactory tools list expanded from 3 to 4 built-in tools
+- McpAdapter `register_default_abilities()` now registers `BatchExecuteAbility`
+
+---
+
 ## [2.2.1] - 2026-03-05
 
 ### Added

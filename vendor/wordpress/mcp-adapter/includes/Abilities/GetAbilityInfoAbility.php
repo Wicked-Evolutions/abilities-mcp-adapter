@@ -52,6 +52,7 @@ final class GetAbilityInfoAbility {
 						'name'          => array( 'type' => 'string' ),
 						'label'         => array( 'type' => 'string' ),
 						'description'   => array( 'type' => 'string' ),
+						'category'      => array( 'type' => 'string' ),
 						'input_schema'  => array(
 							'type'        => 'object',
 							'description' => 'JSON Schema for the ability input parameters',
@@ -169,6 +170,7 @@ final class GetAbilityInfoAbility {
 			'name'         => $ability->get_name(),
 			'label'        => $ability->get_label(),
 			'description'  => $ability->get_description(),
+			'category'     => $ability->get_category(),
 			'input_schema' => $ability->get_input_schema(),
 		);
 

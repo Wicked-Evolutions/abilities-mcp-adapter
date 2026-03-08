@@ -46,6 +46,8 @@ final class DiscoverAbilitiesAbility {
 									'name'        => array( 'type' => 'string' ),
 									'label'       => array( 'type' => 'string' ),
 									'description' => array( 'type' => 'string' ),
+									'category'    => array( 'type' => 'string' ),
+									'tier'        => array( 'type' => 'string' ),
 								),
 								'required'   => array( 'name', 'label', 'description' ),
 							),
@@ -140,10 +142,14 @@ final class DiscoverAbilitiesAbility {
 				continue;
 			}
 
+			$meta = $ability->get_meta();
+
 			$ability_list[] = array(
 				'name'        => $ability_name,
 				'label'       => $ability->get_label(),
 				'description' => $ability->get_description(),
+				'category'    => $ability->get_category(),
+				'tier'        => $meta['tier'] ?? 'free',
 			);
 		}
 

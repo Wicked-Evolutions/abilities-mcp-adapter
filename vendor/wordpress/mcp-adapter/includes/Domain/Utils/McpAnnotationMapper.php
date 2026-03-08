@@ -63,6 +63,21 @@ class McpAnnotationMapper {
 			'features'         => array( 'tool' ),
 			'ability_property' => 'idempotent',
 		),
+		'category'        => array(
+			'type'             => 'string',
+			'features'         => array( 'tool', 'resource', 'prompt' ),
+			'ability_property' => 'category',
+		),
+		'tier'            => array(
+			'type'             => 'string',
+			'features'         => array( 'tool', 'resource', 'prompt' ),
+			'ability_property' => 'tier',
+		),
+		'bridgeHints'     => array(
+			'type'             => 'array',
+			'features'         => array( 'tool', 'resource', 'prompt' ),
+			'ability_property' => 'bridge_hints',
+		),
 		'openWorldHint'   => array(
 			'type'             => 'boolean',
 			'features'         => array( 'tool' ),

@@ -13,6 +13,7 @@ use WP\MCP\Core\McpServer;
 use WP\MCP\Domain\Tools\McpTool;
 use WP\MCP\Handlers\HandlerHelperTrait;
 use WP\MCP\Infrastructure\ErrorHandling\McpErrorFactory;
+use WP\MCP\Infrastructure\ErrorHandling\McpErrorMapper;
 
 /**
  * Handles tools-related MCP methods.
@@ -381,12 +382,10 @@ class ToolsHandler {
 					)
 				);
 
-				// Return error for conversion to isError format by call_tool().
+				// Return mapped error for conversion to isError format by call_tool().
+				$error_response = McpErrorMapper::from_wp_error( $request_id, $result );
 				return array(
-					'error'     => array(
-						'message' => $result->get_error_message(),
-						'code'    => $result->get_error_code(),
-					),
+					'error'     => $error_response['error'],
 					'_metadata' => array(
 						'component_type' => 'tool',
 						'tool_name'      => $tool_name,

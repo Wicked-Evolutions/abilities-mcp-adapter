@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace WP\MCP\Core;
 
+use WP\MCP\Abilities\BatchExecuteAbility;
 use WP\MCP\Abilities\DiscoverAbilitiesAbility;
 use WP\MCP\Abilities\ExecuteAbilityAbility;
 use WP\MCP\Abilities\GetAbilityInfoAbility;
@@ -285,10 +286,11 @@ final class McpAdapter {
 	 * @return void
 	 */
 	public function register_default_abilities(): void {
-		// Register the three core MCP abilities
+		// Register the core MCP abilities
 		DiscoverAbilitiesAbility::register();
 		GetAbilityInfoAbility::register();
 		ExecuteAbilityAbility::register();
+		BatchExecuteAbility::register();
 	}
 
 	/**
