@@ -98,22 +98,28 @@ final class BatchExecuteAbility {
 		$requests = $input['requests'] ?? array();
 		$results  = array();
 
-		// We need access to the ToolsHandler to process individual calls.
-		// Since we're inside an ability, we can assume the McpAdapter is initialized.
+		// Resolve the first registered server — avoids hardcoded ID assumption.
 		$adapter = McpAdapter::instance();
-		$server  = $adapter->get_server( 'mcp-adapter-default-server' );
+		$servers = $adapter->get_servers();
 
-		if ( ! $server ) {
-			return array( 'error' => 'Default MCP server not found' );
+		if ( empty( $servers ) ) {
+			return array(
+				'results' => array(
+					array(
+						'content' => array( array( 'type' => 'text', 'text' => 'No MCP server registered' ) ),
+						'isError' => true,
+					),
+				),
+			);
 		}
 
+		$server  = reset( $servers );
 		$handler = new \WickedEvolutions\McpAdapter\Handlers\Tools\ToolsHandler( $server );
 
 		foreach ( $requests as $request ) {
-			$tool_name = $request['name'];
+			$tool_name = $request['name'] ?? '';
 			$args      = $request['arguments'] ?? array();
 
-			// Prepare the message in the format expected by call_tool
 			$message = array(
 				'method' => 'tools/call',
 				'params' => array(
@@ -122,9 +128,31 @@ final class BatchExecuteAbility {
 				),
 			);
 
-			// Execute the tool call
-			$response = $handler->call_tool( $message );
-			$results[] = $response;
+			try {
+				$raw = $handler->call_tool( $message );
+			} catch ( \Throwable $e ) {
+				$results[] = array(
+					'content' => array( array( 'type' => 'text', 'text' => $e->getMessage() ) ),
+					'isError' => true,
+				);
+				continue;
+			}
+
+			// Strip internal _metadata — not part of the wire format.
+			unset( $raw['_metadata'] );
+
+			// Protocol errors (not_found, etc.) come back as {error: {...}} — convert to isError wire format.
+			if ( isset( $raw['error'] ) ) {
+				$error_message = $raw['error']['message'] ?? 'Tool call failed';
+				$results[] = array(
+					'content' => array( array( 'type' => 'text', 'text' => $error_message ) ),
+					'isError' => true,
+				);
+				continue;
+			}
+
+			// Normal wire format: {content: [...], isError?: false, structuredContent?: {...}}
+			$results[] = $raw;
 		}
 
 		return array(

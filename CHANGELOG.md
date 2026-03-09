@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.1-alpha] - 2026-03-09
+
+### Fixed
+- `mcp-adapter/get-ability-info` — added `show_in_rest: true` to registration so the ability no longer gates itself out of its own permission check via `is_ability_mcp_public()`
+- `mcp-adapter/batch-execute` — three bugs fixed:
+  1. Hardcoded `'mcp-adapter-default-server'` replaced with `get_servers()` + `reset()` — works regardless of server ID
+  2. Per-item `try/catch` added around `call_tool()` — one failing tool no longer aborts the entire batch
+  3. Response format: `_metadata` stripped, `{error}` protocol errors converted to wire-format `{content, isError: true}` — responses now match what the bridge and LLM expect
+
+---
+
 ## [1.0.0-alpha] - 2026-03-08
 
 First standalone release. Fully decoupled from upstream `wordpress/mcp-adapter` Composer

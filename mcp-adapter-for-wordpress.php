@@ -3,7 +3,7 @@
  * Plugin Name: MCP Adapter for WordPress
  * Plugin URI:  https://github.com/Influencentricity/mcp-adapter-for-wordpress
  * Description: Exposes WordPress abilities as MCP tools, resources, and prompts. Upload, activate, and your WordPress abilities become MCP tools.
- * Version:     1.0.0-alpha
+ * Version:     1.0.1-alpha
  * Author:      Influencentricity
  * Author URI:  https://influencentricity.com
  * License:     GPL-2.0-or-later

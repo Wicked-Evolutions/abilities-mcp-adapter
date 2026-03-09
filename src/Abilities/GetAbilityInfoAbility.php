@@ -32,6 +32,7 @@ final class GetAbilityInfoAbility {
 		wp_register_ability(
 			'mcp-adapter/get-ability-info',
 			array(
+				'show_in_rest'        => true,
 				'label'               => 'Get Ability Info',
 				'description'         => 'Get detailed information about a specific WordPress ability including its input/output schema, description, and usage examples.',
 				'category'            => 'mcp-adapter',
