@@ -198,8 +198,12 @@ final class ExecuteAbilityAbility {
 		}
 
 		try {
+			// If the target ability has no input schema, pass null to avoid
+			// WP core's ability_missing_input_schema validation error.
+			$execute_input = empty( $ability->get_input_schema() ) ? null : $parameters;
+
 			// Execute the ability
-			$result = $ability->execute( $parameters );
+			$result = $ability->execute( $execute_input );
 
 			// Check if the result is a WP_Error
 			if ( is_wp_error( $result ) ) {
