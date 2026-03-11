@@ -22,6 +22,7 @@
 |-----|----------|-------|
 | ~~GET_LOCK patch not in repo~~ | ~~Medium~~ | **FIXED** — `GET_LOCK()` now in repo. Transient fallback retained for edge cases. |
 | No automated tests | Medium | 282 tests existed in upstream fork but plugin-level tests missing. |
+| ~~`mcp-adapter/get-started` onboarding ability~~ | ~~—~~ | **DONE** — `GetStartedAbility.php` returns site name, URL, WP version, user role, ability count by category (total/enabled/disabled), and recommended first steps. Readonly, no input required. |
 | ~~Inactive adapter copies on servers~~ | ~~Low~~ | **RESOLVED** — neither `hostinger-ai-assistant` nor `wp-mcp-adapter` exist on either server. Already removed. |
 | ~~Orphaned `mcp_session_lock_*` transients~~ | ~~Low~~ | **RESOLVED** — zero transients found on WE or Helena. 5s TTL = already expired. GET_LOCK switch means no new ones created. |
 | ~~Upstream governance undefined~~ | ~~Low~~ | **DEFERRED** — `wordpress/mcp-adapter` hasn't shipped a release yet. Revisit when upstream publishes. Tracked in "Not Started" as documentation task. |

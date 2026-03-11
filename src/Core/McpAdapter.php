@@ -17,6 +17,7 @@ use WickedEvolutions\McpAdapter\Abilities\BatchExecuteAbility;
 use WickedEvolutions\McpAdapter\Abilities\DiscoverAbilitiesAbility;
 use WickedEvolutions\McpAdapter\Abilities\ExecuteAbilityAbility;
 use WickedEvolutions\McpAdapter\Abilities\GetAbilityInfoAbility;
+use WickedEvolutions\McpAdapter\Abilities\GetStartedAbility;
 use WickedEvolutions\McpAdapter\Cli\McpCommand;
 use WickedEvolutions\McpAdapter\Infrastructure\ErrorHandling\Contracts\McpErrorHandlerInterface;
 use WickedEvolutions\McpAdapter\Infrastructure\ErrorHandling\NullMcpErrorHandler;
@@ -320,6 +321,7 @@ final class McpAdapter {
 	 */
 	public function register_default_abilities(): void {
 		// Register the core MCP abilities
+		GetStartedAbility::register();
 		DiscoverAbilitiesAbility::register();
 		GetAbilityInfoAbility::register();
 		ExecuteAbilityAbility::register();
