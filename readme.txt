@@ -14,7 +14,7 @@ Packages the official WordPress MCP Adapter as an installable plugin. Upload, ac
 
 MCP Adapter for WordPress packages the official `wordpress/mcp-adapter` library as a standard WordPress plugin that you can install via zip upload — no Composer or CLI required.
 
-Once activated, the plugin automatically discovers all abilities registered via `wp_register_ability()` and exposes them as MCP (Model Context Protocol) tools. This lets AI assistants like Claude, ChatGPT, and other MCP-compatible clients interact with your WordPress site through the official Abilities API.
+Once activated, the plugin automatically discovers all abilities registered via `wp_register_ability()` and exposes them as MCP (Model Context Protocol) tools. This lets any AI client or IDE that supports MCP interact with your WordPress site through the official Abilities API.
 
 **What's included:**
 
@@ -28,7 +28,7 @@ Once activated, the plugin automatically discovers all abilities registered via 
 
 * [Abilities Suite for WordPress](https://github.com/Influencentricity/abilities-suite-for-wordpress) — 138 abilities across 18 modules
 * Any plugin that registers abilities via `wp_register_ability()`
-* Any MCP-compatible AI client (Claude Desktop, Claude Code, etc.)
+* Any MCP-compatible AI client or IDE (Claude Code, Claude Desktop, Gemini CLI, Cursor, Windsurf, VS Code, etc.)
 
 == Installation ==
 
