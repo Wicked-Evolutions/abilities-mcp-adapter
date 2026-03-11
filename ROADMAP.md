@@ -33,7 +33,7 @@
 | Document upstream update process | Medium | When `wordpress/mcp-adapter` ships new versions, how to update without losing patches. |
 | Basic validation/smoke test | Medium | No automated tests exist in plugin. |
 | `.github/ISSUE_TEMPLATE/` | Low | If repo goes public. |
-| STDIO tool refresh fix | Low | 3-file fix designed by Lane D. Only matters for STDIO users. |
+| ~~STDIO tool refresh fix~~ | ~~Low~~ | **WON'T-FIX** — STDIO deprecated, HTTP is production transport. Design archived in CTO-BRIEF 2026-03-02 if ever needed. |
 
 ## Recently Completed
 
