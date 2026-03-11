@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0] - 2026-03-11
+
+### Changed
+- **Renamed:** MCP Adapter for WordPress → **Abilities MCP Adapter** (WordPress.org trademark compliance)
+- Plugin slug: `mcp-adapter-for-wordpress` → `abilities-mcp-adapter`
+- Namespace: `WickedEvolutions\McpAdapter` (unchanged)
+- GitHub repo: `Wicked-Evolutions/abilities-mcp-adapter`
+- Deployed to helenawillow.com and wickedevolutions.com with license + permission migration
+
+---
+
 ## [1.0.1-alpha] - 2026-03-09
 
 ### Fixed
