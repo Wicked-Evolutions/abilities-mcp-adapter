@@ -22,7 +22,7 @@
 |-----|----------|-------|
 | ~~GET_LOCK patch not in repo~~ | ~~Medium~~ | **FIXED** — `GET_LOCK()` now in repo. Transient fallback retained for edge cases. |
 | No automated tests | Medium | 282 tests existed in upstream fork but plugin-level tests missing. |
-| Inactive adapter copies on servers | Low | `hostinger-ai-assistant` on WE, `wp-mcp-adapter` on Helena. Risk of confusion if reactivated. |
+| ~~Inactive adapter copies on servers~~ | ~~Low~~ | **RESOLVED** — neither `hostinger-ai-assistant` nor `wp-mcp-adapter` exist on either server. Already removed. |
 | Orphaned `mcp_session_lock_*` transients | Low | Old locking mechanism leftovers in wp_options. Cosmetic. |
 | Upstream governance undefined | Low | No process for tracking/updating `wordpress/mcp-adapter` releases. |
 
