@@ -8,6 +8,4 @@
 /phpunit.xml.dist
 /composer.json
 /composer.lock
-/ROADMAP.md
-/CHANGELOG.md
 /.phpunit.cache

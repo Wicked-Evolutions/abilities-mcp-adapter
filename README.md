@@ -16,7 +16,7 @@ Converts WordPress abilities into MCP (Model Context Protocol) tools, resources,
 ## Requirements
 
 - WordPress 6.9+ (Abilities API)
-- PHP 7.4+
+- PHP 8.0+
 
 ## Installation
 
@@ -61,14 +61,14 @@ The adapter reads `input_schema` and `output_schema` to generate MCP-compatible 
 
 ## Usage with MCP Bridge
 
-For remote access from any MCP-compatible AI client or IDE, use the [WP Abilities MCP](https://github.com/Wicked-Evolutions/wp-abilities-mcp) bridge:
+For remote access from any MCP-compatible AI client or IDE, use the [Abilities MCP](https://github.com/Wicked-Evolutions/abilities-mcp) bridge:
 
 ```json
 {
   "mcpServers": {
     "wordpress": {
       "command": "node",
-      "args": ["/path/to/wp-abilities-mcp/wp-abilities-mcp.js"]
+      "args": ["/path/to/abilities-mcp/abilities-mcp.js"]
     }
   }
 }
@@ -102,7 +102,7 @@ WordPress core (WP 7.0+) includes `WP_AI_Client_Ability_Function_Resolver` which
 
 ## Version
 
-**Current:** 1.0.2-alpha
+**Current:** 1.0.0
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 

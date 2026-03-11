@@ -1,4 +1,4 @@
-name: Add to Product Suite project
+name: Add to project
 on:
   issues:
     types: [opened]

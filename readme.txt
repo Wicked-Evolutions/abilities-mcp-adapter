@@ -38,9 +38,9 @@ Abilities MCP Adapter exposes all registered WordPress abilities as MCP (Model C
 3. Upload the zip file and click Install Now.
 4. Activate the plugin (or Network Activate on multisite).
 
-For remote AI access, use the [WP Abilities MCP](https://github.com/Wicked-Evolutions/wp-abilities-mcp) bridge:
+For remote AI access, use the [Abilities MCP](https://github.com/Wicked-Evolutions/abilities-mcp) bridge:
 
-    node wp-abilities-mcp.js
+    node abilities-mcp.js
 
 == Frequently Asked Questions ==
 
@@ -54,7 +54,7 @@ No. All dependencies are pre-bundled in the plugin zip. Just upload and activate
 
 = How do I connect an AI tool? =
 
-Use WP-CLI over SSH: `wp mcp-adapter serve`. For a transport bridge, see [WP Abilities MCP](https://github.com/Wicked-Evolutions/wp-abilities-mcp) — a unified multi-site MCP bridge with HTTP and SSH transport support.
+Use WP-CLI over SSH: `wp mcp-adapter serve`. For a transport bridge, see [Abilities MCP](https://github.com/Wicked-Evolutions/abilities-mcp) — a unified multi-site MCP bridge with HTTP and SSH transport support.
 
 = Does this work on multisite? =
 
