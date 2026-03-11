@@ -30,7 +30,7 @@
 
 | Item | Priority | Notes |
 |------|----------|-------|
-| Document upstream update process | Medium | When `wordpress/mcp-adapter` ships new versions, how to update without losing patches. |
+| Upstream alignment on WP 7.0 release | Medium | `upstream` remote added (`WordPress/mcp-adapter`). Fork point: v0.4.0. Upstream trunk has v0.4.1 (bug fixes). v0.5.0 branch has major refactor: `php-mcp-schema` DTOs, protocol version negotiation, 6-part schema rewrite. **Action: diff on April 9 when WP 7.0 ships.** If MCP goes core, refactor to extend core instead of forking. If not, cherry-pick relevant fixes. |
 | Basic validation/smoke test | Medium | No automated tests exist in plugin. |
 | `.github/ISSUE_TEMPLATE/` | Low | If repo goes public. |
 | ~~STDIO tool refresh fix~~ | ~~Low~~ | **WON'T-FIX** — STDIO deprecated, HTTP is production transport. Design archived in CTO-BRIEF 2026-03-02 if ever needed. |
