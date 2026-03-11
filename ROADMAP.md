@@ -12,7 +12,7 @@
 
 | Bug | Priority | Notes |
 |-----|----------|-------|
-| `McpAdapter::VERSION` constant mismatch | Low | Plugin header says `1.0.2-alpha`, `src/Core/McpAdapter.php` constant says `1.0.1-alpha`. One-line fix. |
+| ~~`McpAdapter::VERSION` constant mismatch~~ | ~~Low~~ | **FIXED** — constant updated to `1.0.2-alpha`. |
 | SessionManager non-atomic lock (adapter#2) | Medium | Transient-based check-before-set has TOCTOU race. Retry logic mitigates. GET_LOCK patch deployed server-side but NOT in repo. |
 | Tool refresh after plugin install (adapter#1) | Low | STDIO-only issue. HTTP transport unaffected. Won't-fix candidate — tools are fetched fresh each request, no cache to invalidate. |
 
