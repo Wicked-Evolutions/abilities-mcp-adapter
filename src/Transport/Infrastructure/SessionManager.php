@@ -30,7 +30,7 @@ final class SessionManager {
 	private const SESSION_META_KEY = 'mcp_adapter_sessions';
 
 	/**
-	 * Transient key prefix for per-user session write locks.
+	 * Lock name prefix for MySQL GET_LOCK / transient fallback.
 	 *
 	 * @var string
 	 */
@@ -44,36 +44,38 @@ final class SessionManager {
 	private const LOCK_TTL = 5;
 
 	/**
-	 * Maximum attempts to acquire the write lock before giving up.
+	 * Acquire a per-user write lock.
 	 *
-	 * @var int
-	 */
-	private const LOCK_MAX_ATTEMPTS = 10;
-
-	/**
-	 * Acquire a per-user write lock using WordPress transients.
-	 *
-	 * Uses set_transient with a check-before-set pattern backed by
-	 * the object cache's atomic `add` when available, or the options
-	 * table `INSERT IGNORE` otherwise — both are safe against races.
+	 * Prefers MySQL GET_LOCK() for true atomicity. Falls back to the
+	 * transient check-before-set pattern on environments where $wpdb
+	 * is unavailable or GET_LOCK fails unexpectedly.
 	 *
 	 * @param int $user_id The user ID to lock for.
 	 *
 	 * @return bool True if lock acquired, false on timeout.
 	 */
 	private static function acquire_lock( int $user_id ): bool {
-		$key = self::LOCK_KEY_PREFIX . $user_id;
+		$lock_name = self::LOCK_KEY_PREFIX . $user_id;
 
-		for ( $i = 0; $i < self::LOCK_MAX_ATTEMPTS; $i++ ) {
-			// set_transient returns false if the key already exists (in persistent cache).
-			// For the DB-backed fallback we set a short TTL; worst case the lock expires in LOCK_TTL seconds.
-			if ( false === get_transient( $key ) ) {
-				set_transient( $key, 1, self::LOCK_TTL );
+		// Prefer MySQL GET_LOCK — truly atomic, no TOCTOU race.
+		global $wpdb;
+		if ( $wpdb && $wpdb->dbh ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$result = $wpdb->get_var(
+				$wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock_name, self::LOCK_TTL )
+			);
+
+			return '1' === (string) $result;
+		}
+
+		// Fallback: transient-based locking (TOCTOU race possible under high concurrency).
+		for ( $i = 0; $i < 10; $i++ ) {
+			if ( false === get_transient( $lock_name ) ) {
+				set_transient( $lock_name, 1, self::LOCK_TTL );
 
 				return true;
 			}
 
-			// Brief sleep between attempts: 10–50 ms to back off without blocking long.
 			usleep( random_int( 10000, 50000 ) );
 		}
 
@@ -88,7 +90,19 @@ final class SessionManager {
 	 * @return void
 	 */
 	private static function release_lock( int $user_id ): void {
-		delete_transient( self::LOCK_KEY_PREFIX . $user_id );
+		$lock_name = self::LOCK_KEY_PREFIX . $user_id;
+
+		global $wpdb;
+		if ( $wpdb && $wpdb->dbh ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->get_var(
+				$wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name )
+			);
+
+			return;
+		}
+
+		delete_transient( $lock_name );
 	}
 
 	/**

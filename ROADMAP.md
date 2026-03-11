@@ -13,14 +13,14 @@
 | Bug | Priority | Notes |
 |-----|----------|-------|
 | ~~`McpAdapter::VERSION` constant mismatch~~ | ~~Low~~ | **FIXED** — constant updated to `1.0.2-alpha`. |
-| SessionManager non-atomic lock (adapter#2) | Medium | Transient-based check-before-set has TOCTOU race. Retry logic mitigates. GET_LOCK patch deployed server-side but NOT in repo. |
+| ~~SessionManager non-atomic lock (adapter#2)~~ | ~~Medium~~ | **FIXED** — `acquire_lock()` now uses MySQL `GET_LOCK()` for true atomicity, with transient fallback. |
 | Tool refresh after plugin install (adapter#1) | Low | STDIO-only issue. HTTP transport unaffected. Won't-fix candidate — tools are fetched fresh each request, no cache to invalidate. |
 
 ## Gaps
 
 | Gap | Priority | Notes |
 |-----|----------|-------|
-| GET_LOCK patch not in repo | Medium | MySQL `GET_LOCK()` session locking deployed on servers but repo still has transient-based approach. Anyone installing from GitHub gets the weaker locking. |
+| ~~GET_LOCK patch not in repo~~ | ~~Medium~~ | **FIXED** — `GET_LOCK()` now in repo. Transient fallback retained for edge cases. |
 | No automated tests | Medium | 282 tests existed in upstream fork but plugin-level tests missing. |
 | Inactive adapter copies on servers | Low | `hostinger-ai-assistant` on WE, `wp-mcp-adapter` on Helena. Risk of confusion if reactivated. |
 | Orphaned `mcp_session_lock_*` transients | Low | Old locking mechanism leftovers in wp_options. Cosmetic. |
@@ -66,5 +66,5 @@
 
 ## False Alarms (verified 2026-03-11)
 
-- ~~Dead constants `LOCK_KEY_PREFIX`, `LOCK_MAX_ATTEMPTS`~~ — Actively used in transient-based locking. NOT dead code.
+- ~~Dead constants `LOCK_KEY_PREFIX`, `LOCK_MAX_ATTEMPTS`~~ — `LOCK_KEY_PREFIX` actively used. `LOCK_MAX_ATTEMPTS` removed (inlined in transient fallback).
 - ~~adapter#3 (cross-ref #5)~~ — Parent issue resolved. Close this issue.
