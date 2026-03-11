@@ -2,6 +2,10 @@
 /**
  * Transport context object for dependency injection.
  *
+ * Copyright (C) 2026 Influencentricity | Wicked Evolutions
+ * License: GPL-2.0-or-later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ *
  * @package WickedEvolutions\McpAdapter
  */
 

@@ -5,6 +5,10 @@
  * This service acts as a bridge between the STDIO protocol and MCP servers,
  * allowing any registered server to be exposed via command-line interface.
  *
+ * Copyright (C) 2026 Influencentricity | Wicked Evolutions
+ * License: GPL-2.0-or-later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ *
  * @package WickedEvolutions\McpAdapter
  */
 
