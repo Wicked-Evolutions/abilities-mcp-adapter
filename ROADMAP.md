@@ -1,4 +1,4 @@
-# ROADMAP — MCP Adapter for WordPress
+# ROADMAP — Abilities MCP Adapter
 
 > Source of truth for product development state. Obsidian roadmap references this file.
 > Part of the Wicked Evolutions Trinity AI Suite for WordPress.

@@ -24,7 +24,7 @@ namespace WickedEvolutions\McpAdapter\Abilities;
  * - Only abilities with mcp.public=true metadata will be returned
  * - Requires proper WordPress capability checks for secure operation
  *
- * @see https://github.com/your-repo/mcp-adapter/docs/security.md for detailed security configuration
+ * @see https://github.com/Wicked-Evolutions/abilities-mcp-adapter for detailed security configuration
  */
 final class DiscoverAbilitiesAbility {
 	use McpAbilityHelperTrait;

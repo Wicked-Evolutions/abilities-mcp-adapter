@@ -30,7 +30,7 @@ use WickedEvolutions\McpAdapter\Servers\DefaultServerFactory;
  */
 final class McpAdapter {
 
-	public const VERSION = '1.0.2-alpha';
+	public const VERSION = '1.0.0';
 
 	/**
 	 * Registry instance

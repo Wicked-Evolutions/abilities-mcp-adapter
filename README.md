@@ -1,4 +1,4 @@
-# MCP Adapter for WordPress
+# Abilities MCP Adapter
 
 Converts WordPress abilities into MCP (Model Context Protocol) tools, resources, and prompts. Any ability registered via `wp_register_ability()` automatically becomes accessible to AI agents — zero configuration required.
 
@@ -61,7 +61,7 @@ The adapter reads `input_schema` and `output_schema` to generate MCP-compatible 
 
 ## Usage with MCP Bridge
 
-For remote access from any MCP-compatible AI client or IDE, use the [WP Abilities MCP](https://github.com/Influencentricity/wp-abilities-mcp) bridge:
+For remote access from any MCP-compatible AI client or IDE, use the [WP Abilities MCP](https://github.com/Wicked-Evolutions/wp-abilities-mcp) bridge:
 
 ```json
 {

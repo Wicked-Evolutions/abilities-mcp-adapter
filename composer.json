@@ -1,6 +1,6 @@
 {
-    "name": "influencentricity/mcp-adapter-for-wordpress",
-    "description": "MCP Adapter for WordPress — exposes WordPress abilities as MCP tools, resources, and prompts.",
+    "name": "wicked-evolutions/abilities-mcp-adapter",
+    "description": "Abilities MCP Adapter — exposes WordPress abilities as MCP tools, resources, and prompts.",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
     "autoload": {

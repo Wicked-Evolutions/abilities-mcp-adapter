@@ -1,12 +1,12 @@
 <?php
 /**
- * Plugin Name: MCP Adapter for WordPress
- * Plugin URI:  https://github.com/Influencentricity/mcp-adapter-for-wordpress
+ * Plugin Name: Abilities MCP Adapter
+ * Plugin URI:  https://github.com/Wicked-Evolutions/abilities-mcp-adapter
  * Description: Exposes WordPress abilities as MCP tools, resources, and prompts. Upload, activate, and your WordPress abilities become MCP tools.
- * Version:     1.0.2-alpha
- * Author:      Influencentricity
- * Author URI:  https://influencentricity.com
- * Copyright:   Copyright (C) 2026 Influencentricity | Wicked Evolutions
+ * Version:     1.0.0
+ * Author:      Wicked Evolutions
+ * Author URI:  https://wickedevolutions.com
+ * Copyright:   Copyright (C) 2026 Wicked Evolutions
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires at least: 6.9
