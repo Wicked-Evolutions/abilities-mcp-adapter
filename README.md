@@ -16,7 +16,7 @@ Converts WordPress abilities into MCP (Model Context Protocol) tools, resources,
 ## Requirements
 
 - WordPress 6.9+ (Abilities API)
-- PHP 8.0+
+- PHP 7.4+
 
 ## Installation
 
@@ -102,7 +102,7 @@ WordPress core (WP 7.0+) includes `WP_AI_Client_Ability_Function_Resolver` which
 
 ## Version
 
-**Current:** 1.0.0-alpha
+**Current:** 1.0.2-alpha
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
