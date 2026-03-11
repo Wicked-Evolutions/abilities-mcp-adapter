@@ -14,7 +14,7 @@
 |-----|----------|-------|
 | ~~`McpAdapter::VERSION` constant mismatch~~ | ~~Low~~ | **FIXED** — constant updated to `1.0.2-alpha`. |
 | ~~SessionManager non-atomic lock (adapter#2)~~ | ~~Medium~~ | **FIXED** — `acquire_lock()` now uses MySQL `GET_LOCK()` for true atomicity, with transient fallback. |
-| Tool refresh after plugin install (adapter#1) | Low | STDIO-only issue. HTTP transport unaffected. Won't-fix candidate — tools are fetched fresh each request, no cache to invalidate. |
+| ~~Tool refresh after plugin install (adapter#1)~~ | ~~Low~~ | **WON'T-FIX** — STDIO-only issue. HTTP transport (all production use) fetches tools fresh each request. No cache to invalidate. |
 
 ## Gaps
 
@@ -23,8 +23,8 @@
 | ~~GET_LOCK patch not in repo~~ | ~~Medium~~ | **FIXED** — `GET_LOCK()` now in repo. Transient fallback retained for edge cases. |
 | No automated tests | Medium | 282 tests existed in upstream fork but plugin-level tests missing. |
 | ~~Inactive adapter copies on servers~~ | ~~Low~~ | **RESOLVED** — neither `hostinger-ai-assistant` nor `wp-mcp-adapter` exist on either server. Already removed. |
-| Orphaned `mcp_session_lock_*` transients | Low | Old locking mechanism leftovers in wp_options. Cosmetic. |
-| Upstream governance undefined | Low | No process for tracking/updating `wordpress/mcp-adapter` releases. |
+| ~~Orphaned `mcp_session_lock_*` transients~~ | ~~Low~~ | **RESOLVED** — zero transients found on WE or Helena. 5s TTL = already expired. GET_LOCK switch means no new ones created. |
+| ~~Upstream governance undefined~~ | ~~Low~~ | **DEFERRED** — `wordpress/mcp-adapter` hasn't shipped a release yet. Revisit when upstream publishes. Tracked in "Not Started" as documentation task. |
 
 ## Not Started
 
