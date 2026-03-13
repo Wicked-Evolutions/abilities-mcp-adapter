@@ -31,7 +31,7 @@ final class GetStartedAbility {
 			'mcp-adapter/get-started',
 			array(
 				'label'               => 'Get Started',
-				'description'         => 'Returns a structured onboarding summary of this WordPress site: available ability modules, total tool count, current user permissions, and recommended first steps. Call this first when connecting to a new site.',
+				'description'         => 'Returns site capabilities and a next_action sequence. Call this first when connecting to a new site. The response contains a next_action field — follow its sequence before presenting anything to the user.',
 				'category'            => 'mcp-adapter',
 				'output_schema'       => array(
 					'type'       => 'object',
@@ -234,8 +234,13 @@ final class GetStartedAbility {
 		$has_knowledge_boot = isset( $abilities['knowledge/boot'] );
 		if ( $has_knowledge_boot ) {
 			$response['next_action'] = array(
-				'ability'     => 'knowledge/boot',
-				'instruction' => 'This site has a Knowledge Layer. Call knowledge/boot now — it will orient you to the site and tell you what to do next. Do not browse abilities or make other calls until you have completed the boot sequence.',
+				'ability'  => 'knowledge/boot',
+				'sequence' => array(
+					'Call knowledge/boot.',
+					'Read behavioral_directive from the response.',
+					'Follow the next_action from the response.',
+					'Do not output to the user until all steps are complete.',
+				),
 			);
 		} else {
 			// Fallback for sites without Knowledge Layer.
