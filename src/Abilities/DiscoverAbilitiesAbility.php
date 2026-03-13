@@ -37,8 +37,26 @@ final class DiscoverAbilitiesAbility {
 			'mcp-adapter/discover-abilities',
 			array(
 				'label'               => 'Discover Abilities',
-				'description'         => 'Discover all available WordPress abilities in the system. Returns a list of all registered abilities with their basic information.',
+				'description'         => 'Lists registered WordPress abilities. Supports filtering by category, annotation, and search. Without filters returns the full manifest (~77KB). Use filters to keep responses lean.',
 				'category'            => 'mcp-adapter',
+				'input_schema'        => array(
+					'type'       => 'object',
+					'properties' => array(
+						'category'   => array(
+							'type'        => 'string',
+							'description' => 'Filter by ability category slug (e.g. "content", "taxonomies", "knowledge").',
+						),
+						'annotation' => array(
+							'type'        => 'string',
+							'enum'        => array( 'readonly', 'destructive' ),
+							'description' => 'Filter by meta annotation: "readonly" for safe read operations, "destructive" for delete operations.',
+						),
+						'search'     => array(
+							'type'        => 'string',
+							'description' => 'Keyword search in ability name and description.',
+						),
+					),
+				),
 				'output_schema'       => array(
 					'type'       => 'object',
 					'properties' => array(
@@ -129,24 +147,52 @@ final class DiscoverAbilitiesAbility {
 			);
 		}
 
-		// Get all abilities and filter for publicly exposed ones
+		// Get all abilities and filter for publicly exposed ones.
 		$abilities = wp_get_abilities();
+
+		// Extract filter parameters.
+		$filter_category   = $input['category'] ?? '';
+		$filter_annotation = $input['annotation'] ?? '';
+		$filter_search     = $input['search'] ?? '';
 
 		$ability_list = array();
 		foreach ( $abilities as $ability ) {
 			$ability_name = $ability->get_name();
 
-			// Check if ability is publicly exposed via MCP
+			// Check if ability is publicly exposed via MCP.
 			if ( ! self::is_ability_mcp_public( $ability ) ) {
 				continue;
 			}
 
-			// Only discover abilities with type='tool' (default type)
+			// Only discover abilities with type='tool' (default type).
 			if ( self::get_ability_mcp_type( $ability ) !== 'tool' ) {
 				continue;
 			}
 
+			// Filter by category.
+			if ( $filter_category && $ability->get_category() !== $filter_category ) {
+				continue;
+			}
+
+			// Filter by annotation.
 			$meta = $ability->get_meta();
+			if ( $filter_annotation ) {
+				$annotations = $meta['annotations'] ?? array();
+				if ( 'readonly' === $filter_annotation && empty( $annotations['readonly'] ) ) {
+					continue;
+				}
+				if ( 'destructive' === $filter_annotation && empty( $annotations['destructive'] ) ) {
+					continue;
+				}
+			}
+
+			// Filter by search keyword.
+			if ( $filter_search ) {
+				$haystack = strtolower( $ability_name . ' ' . $ability->get_label() . ' ' . $ability->get_description() );
+				if ( strpos( $haystack, strtolower( $filter_search ) ) === false ) {
+					continue;
+				}
+			}
 
 			$ability_list[] = array(
 				'name'        => $ability_name,
@@ -159,6 +205,8 @@ final class DiscoverAbilitiesAbility {
 
 		return array(
 			'abilities' => $ability_list,
+			'total'     => count( $ability_list ),
+			'filtered'  => (bool) ( $filter_category || $filter_annotation || $filter_search ),
 		);
 	}
 }
