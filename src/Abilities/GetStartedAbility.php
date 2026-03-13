@@ -195,11 +195,7 @@ final class GetStartedAbility {
 		);
 
 		// Recommended first steps.
-		$steps = array(
-			'Use "mcp-adapter/discover-abilities" to browse all available tools by category.',
-			'Use "mcp-adapter/get-ability-info" to see detailed schema for any specific tool.',
-			'Content tools (content/list, content/get, content/create) are a good starting point.',
-		);
+		$steps = array();
 
 		if ( $disabled_count > 0 ) {
 			$steps[] = sprintf(
@@ -216,7 +212,8 @@ final class GetStartedAbility {
 			);
 		}
 
-		return array(
+		// Build the response.
+		$response = array(
 			'site_name'              => $site_name,
 			'site_url'               => $site_url,
 			'wordpress_version'      => $wordpress_version,
@@ -232,5 +229,22 @@ final class GetStartedAbility {
 			),
 			'recommended_first_steps' => $steps,
 		);
+
+		// Knowledge Layer integration — if knowledge/boot exists, direct AI there.
+		$has_knowledge_boot = isset( $abilities['knowledge/boot'] );
+		if ( $has_knowledge_boot ) {
+			$response['next_action'] = array(
+				'ability'     => 'knowledge/boot',
+				'instruction' => 'This site has a Knowledge Layer. Call knowledge/boot now — it will orient you to the site and tell you what to do next. Do not browse abilities or make other calls until you have completed the boot sequence.',
+			);
+		} else {
+			// Fallback for sites without Knowledge Layer.
+			array_unshift( $steps, 'Use "mcp-adapter/discover-abilities" to browse all available tools by category.' );
+			$steps[] = 'Use "mcp-adapter/get-ability-info" to see detailed schema for any specific tool.';
+			$steps[] = 'Content tools (content/list, content/get, content/create) are a good starting point.';
+			$response['recommended_first_steps'] = $steps;
+		}
+
+		return $response;
 	}
 }
