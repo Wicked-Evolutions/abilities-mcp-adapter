@@ -80,6 +80,7 @@ final class DiscoverAbilitiesAbility {
 				'permission_callback' => array( self::class, 'check_permission' ),
 				'execute_callback'    => array( self::class, 'execute' ),
 				'meta'                => array(
+					'mcp'         => array( 'public' => true ),
 					'annotations' => array(
 						'readonly'    => true,
 						'destructive' => false,
