@@ -163,7 +163,7 @@ class RequestRouter {
 	 */
 	private function handle_initialize_with_session( array $params, $request_id, ?HttpRequestContext $http_context ): array {
 		// Get the initialize response from the handler
-		$result = $this->context->initialize_handler->handle( $request_id );
+		$result = $this->context->initialize_handler->handle( $params, $request_id );
 
 		// Handle session creation if HTTP context is provided and initialize was successful
 		if ( $http_context && ! isset( $result['error'] ) && ! $http_context->session_id ) {
