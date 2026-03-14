@@ -3,7 +3,7 @@
  * Plugin Name: Abilities MCP Adapter
  * Plugin URI:  https://github.com/Wicked-Evolutions/abilities-mcp-adapter
  * Description: Exposes WordPress abilities as MCP tools, resources, and prompts. Upload, activate, and your WordPress abilities become MCP tools.
- * Version:     1.0.0
+ * Version:     1.0.5
  * Author:      Wicked Evolutions
  * Author URI:  https://wickedevolutions.com
  * Copyright:   Copyright (C) 2026 Wicked Evolutions
@@ -15,6 +15,26 @@
 
 defined( 'ABSPATH' ) || exit;
 
+// Plugin constants.
+define( 'ABILITIES_MCP_ADAPTER_VERSION', '1.0.5' );
+define( 'ABILITIES_MCP_ADAPTER_PATH', plugin_dir_path( __FILE__ ) );
+
+// License manager — FluentCart license for auto-update delivery.
+require_once ABILITIES_MCP_ADAPTER_PATH . 'includes/class-license-manager.php';
+
+// Plugin updater — checks FluentCart for new versions.
+require_once ABILITIES_MCP_ADAPTER_PATH . 'includes/updater/class-plugin-updater.php';
+
+new Abilities_MCP_Adapter_Plugin_Updater( array(
+	'slug'                 => 'abilities-mcp-adapter',
+	'basename'             => plugin_basename( __FILE__ ),
+	'version'              => ABILITIES_MCP_ADAPTER_VERSION,
+	'item_id'              => Abilities_MCP_Adapter_License_Manager::get_product_id(),
+	'api_url'              => Abilities_MCP_Adapter_License_Manager::STORE_URL,
+	'license_key_callback' => array( 'Abilities_MCP_Adapter_License_Manager', 'get_license_key' ),
+	'show_check_update'    => true,
+) );
+
 // Composer PSR-4 autoloader.
 $autoloader = plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 if ( file_exists( $autoloader ) ) {
@@ -25,6 +45,12 @@ if ( file_exists( $autoloader ) ) {
 }
 
 use WickedEvolutions\McpAdapter\Core\McpAdapter;
+use WickedEvolutions\McpAdapter\Admin\AbilitySettingsPage;
+
+// Register admin settings page (license + ability permissions).
+if ( is_admin() ) {
+	AbilitySettingsPage::register();
+}
 
 // Enable MCP tool validation — silently drops invalid tools instead of breaking all tools.
 add_filter( 'mcp_adapter_validation_enabled', '__return_true' );

@@ -258,42 +258,6 @@ class ToolsHandler {
 		$tool_name = $params['name'];
 		$args      = $params['arguments'] ?? array();
 
-		// Boot gate — if Knowledge Layer is active and boot hasn't been called
-		// this session, redirect AI to boot before executing any other ability.
-		// Tool names use hyphens (MCP format), ability names use slashes (WordPress format).
-		$boot_exempt = array(
-			'knowledge-boot',
-			'mcp-adapter-get-started',
-			'mcp-adapter-discover-abilities',
-			'mcp-adapter-get-ability-info',
-			'mcp-adapter-execute-ability',
-			'suite-get-status',
-		);
-		if ( ! in_array( $tool_name, $boot_exempt, true )
-			&& function_exists( 'wp_get_ability' )
-			&& wp_get_ability( 'knowledge/boot' )
-		) {
-			$booted = get_transient( 'kl_session_booted_' . get_current_user_id() );
-			if ( ! $booted ) {
-				return array(
-					'boot_required' => true,
-					'next_action'   => array(
-						'ability'  => 'knowledge/boot',
-						'sequence' => array(
-							'Call knowledge/boot before using any other ability.',
-							'Read behavioral_directive from the response.',
-							'Follow the next_action from the response.',
-						),
-					),
-					'_metadata'     => array(
-						'component_type' => 'tool',
-						'tool_name'      => $tool_name,
-						'failure_reason' => 'boot_required',
-					),
-				);
-			}
-		}
-
 		// Get the tool callbacks.
 		$tool = $this->mcp->get_tool( $params['name'] );
 
