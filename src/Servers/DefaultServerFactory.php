@@ -50,7 +50,7 @@ class DefaultServerFactory {
 			'server_route_namespace' => 'mcp',
 			'server_route'           => 'mcp-adapter-default-server',
 			'server_name'            => 'MCP Adapter Default Server',
-			'server_description'     => 'Default MCP server for WordPress abilities discovery and execution',
+			'server_description'     => '{"server":"abilities-mcp","boot_sequence":{"first_tool":"mcp-adapter/get-started","then":"follow next_action in response"}}',
 			'server_version'         => 'v1.0.0',
 			'mcp_transports'         => array( HttpTransport::class ),
 			'error_handler'          => ErrorLogMcpErrorHandler::class,

@@ -204,10 +204,33 @@ final class DiscoverAbilitiesAbility {
 			);
 		}
 
-		return array(
-			'abilities' => $ability_list,
-			'total'     => count( $ability_list ),
-			'filtered'  => (bool) ( $filter_category || $filter_annotation || $filter_search ),
-		);
+		// If knowledge/boot exists, put the directive at the top of the response.
+		$has_knowledge_boot = isset( $abilities['knowledge/boot'] );
+		if ( $has_knowledge_boot ) {
+			$response = array(
+				'message'                          => 'This site has a Knowledge Layer. Before presenting abilities to the user, ask them which option they prefer.',
+				'present_these_options_to_the_user' => array(
+					array(
+						'label'  => 'Boot the knowledge sequence',
+						'action' => array( 'ability' => 'knowledge/boot' ),
+					),
+					array(
+						'label'  => 'Tell me what we are doing in this session',
+						'action' => 'ask_user',
+					),
+				),
+				'abilities'                        => $ability_list,
+				'total'                            => count( $ability_list ),
+				'filtered'                         => (bool) ( $filter_category || $filter_annotation || $filter_search ),
+			);
+		} else {
+			$response = array(
+				'abilities' => $ability_list,
+				'total'     => count( $ability_list ),
+				'filtered'  => (bool) ( $filter_category || $filter_annotation || $filter_search ),
+			);
+		}
+
+		return $response;
 	}
 }
