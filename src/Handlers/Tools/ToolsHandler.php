@@ -138,11 +138,25 @@ class ToolsHandler {
 				// - permission_denied, permission_check_failed
 				// - wp_error, execution_failed
 				$error_message = $result['error']['message'] ?? 'An error occurred while executing the tool.';
-				$response      = array(
+				$error_code    = $result['_metadata']['error_code'] ?? $result['error']['code'] ?? null;
+				$error_data    = $result['error']['data'] ?? null;
+
+				// Build structured error text so AI clients can distinguish error types.
+				$error_parts = array();
+				if ( $error_code ) {
+					$error_parts[] = '[' . $error_code . ']';
+				}
+				$error_parts[] = $error_message;
+				if ( $error_data && is_array( $error_data ) ) {
+					$error_parts[] = 'Details: ' . wp_json_encode( $error_data );
+				}
+				$error_text = implode( ' ', $error_parts );
+
+				$response = array(
 					'content' => array(
 						array(
 							'type' => 'text',
-							'text' => $error_message,
+							'text' => $error_text,
 						),
 					),
 					'isError' => true,
@@ -298,7 +312,7 @@ class ToolsHandler {
 			);
 
 			return array(
-				'error'     => McpErrorFactory::internal_error( $request_id )['error'],
+				'error'     => McpErrorFactory::internal_error( $request_id, $ability->get_error_message() )['error'],
 				'_metadata' => array(
 					'component_type' => 'tool',
 					'tool_name'      => $tool_name,
@@ -355,13 +369,14 @@ class ToolsHandler {
 		try {
 			$has_permission = $ability->check_permissions( $args );
 			if ( true !== $has_permission ) {
-				// Log detailed reason internally; never expose to client.
-				$failure_reason = 'permission_denied';
+				$failure_reason  = 'permission_denied';
+				$failure_message = '';
 
 				if ( is_wp_error( $has_permission ) ) {
-					$failure_reason = $has_permission->get_error_code();
+					$failure_reason  = $has_permission->get_error_code();
+					$failure_message = $has_permission->get_error_message();
 					$this->mcp->error_handler->log(
-						'Permission denied for tool: ' . $has_permission->get_error_message(),
+						'Permission denied for tool: ' . $failure_message,
 						array(
 							'tool'    => $tool_name,
 							'ability' => $ability->get_name(),
@@ -370,7 +385,7 @@ class ToolsHandler {
 				}
 
 				return array(
-					'error'     => McpErrorFactory::permission_denied( $request_id )['error'],
+					'error'     => McpErrorFactory::permission_denied( $request_id, $failure_message )['error'],
 					'_metadata' => array(
 						'component_type' => 'tool',
 						'tool_name'      => $tool_name,
@@ -389,7 +404,7 @@ class ToolsHandler {
 			);
 
 			return array(
-				'error'     => McpErrorFactory::internal_error( $request_id )['error'],
+				'error'     => McpErrorFactory::internal_error( $request_id, $e->getMessage() )['error'],
 				'_metadata' => array(
 					'component_type' => 'tool',
 					'tool_name'      => $tool_name,

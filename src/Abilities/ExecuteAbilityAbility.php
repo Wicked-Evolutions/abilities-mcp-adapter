@@ -211,10 +211,18 @@ final class ExecuteAbilityAbility {
 
 			// Check if the result is a WP_Error
 			if ( is_wp_error( $result ) ) {
-				return array(
-					'success' => false,
-					'error'   => $result->get_error_message(),
+				$error_response = array(
+					'success'    => false,
+					'error'      => $result->get_error_message(),
+					'error_code' => $result->get_error_code(),
 				);
+
+				$error_data = $result->get_error_data();
+				if ( ! empty( $error_data ) ) {
+					$error_response['error_data'] = $error_data;
+				}
+
+				return $error_response;
 			}
 
 			return array(
