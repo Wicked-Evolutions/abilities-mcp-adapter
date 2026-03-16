@@ -1,5 +1,65 @@
 # Changelog
 
+## [1.0.9] - 2026-03-16
+
+### Added
+- `input_schema` included in error `_metadata` for self-correcting AI agents — when a tool call fails, the response now includes the expected parameter schema
+
+## [1.0.8] - 2026-03-15
+
+### Fixed
+- WP_Error details now pass through to MCP client — error code, message, and data are preserved instead of generic "An error occurred"
+
+## [1.0.7] - 2026-03-14
+
+### Added
+- Native MCP protocol version negotiation — server-side handling
+
+## [1.0.6] - 2026-03-13
+
+### Changed
+- Version bump for deployment alignment
+
+## [1.0.5] - 2026-03-13
+
+### Added
+- License manager with FluentCart integration
+- Plugin updater for auto-updates via FluentCart
+- Network admin UI for multisite
+- `discover-abilities` presents Knowledge Layer choices to user (boot nudge)
+
+### Removed
+- Boot gate requirement
+
+## [1.0.4] - 2026-03-12
+
+### Added
+- `mcp.public` flag on `discover-abilities` so it works via `execute-ability`
+- Filtered discovery: category, annotation, and search filters
+
+## [1.0.3] - 2026-03-12
+
+### Added
+- Boot gate and structured `next_action` sequences
+- `get-started` directs AI to `knowledge/boot` when Knowledge Layer exists
+
+## [1.0.2] - 2026-03-11
+
+### Fixed
+- `empty()` null conversion blocking all ability execution — replaced with `??` / `isset()`
+- Pass null to no-schema abilities in `execute-ability` meta-ability
+- Align `McpAdapter::VERSION` constant with plugin header
+
+---
+
+## [1.0.1] - 2026-03-09
+
+### Fixed
+- `mcp-adapter/get-ability-info` — `show_in_rest: true` added so ability doesn't gate itself
+- `mcp-adapter/batch-execute` — three bugs (hardcoded server ID, missing per-item try/catch, response format mismatch)
+
+---
+
 ## [1.0.0] - 2026-03-11
 
 ### Changed

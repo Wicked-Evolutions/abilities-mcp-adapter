@@ -102,7 +102,7 @@ WordPress core (WP 7.0+) includes `WP_AI_Client_Ability_Function_Resolver` which
 
 ## Version
 
-**Current:** 1.0.0
+**Current:** 1.0.9
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
