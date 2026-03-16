@@ -346,6 +346,7 @@ class ToolsHandler {
 					'ability_name'   => $ability->get_name(),
 					'failure_reason' => 'ability_disabled',
 					'permission'     => $permission,
+					'input_schema'   => $ability->get_input_schema(),
 				),
 			);
 		}
@@ -391,6 +392,7 @@ class ToolsHandler {
 						'tool_name'      => $tool_name,
 						'ability_name'   => $ability->get_name(),
 						'failure_reason' => $failure_reason,
+						'input_schema'   => $ability->get_input_schema(),
 					),
 				);
 			}
@@ -411,6 +413,7 @@ class ToolsHandler {
 					'ability_name'   => $ability->get_name(),
 					'failure_reason' => 'permission_check_failed',
 					'error_type'     => get_class( $e ),
+					'input_schema'   => $ability->get_input_schema(),
 				),
 			);
 		}
@@ -440,6 +443,7 @@ class ToolsHandler {
 						'ability_name'   => $ability->get_name(),
 						'failure_reason' => 'wp_error',
 						'error_code'     => $result->get_error_code(),
+						'input_schema'   => $ability->get_input_schema(),
 					),
 				);
 			}
@@ -485,6 +489,7 @@ class ToolsHandler {
 					'ability_name'   => $ability->get_name(),
 					'failure_reason' => 'execution_failed',
 					'error_type'     => get_class( $e ),
+					'input_schema'   => $ability->get_input_schema(),
 				),
 			);
 		}
