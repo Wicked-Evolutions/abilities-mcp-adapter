@@ -137,9 +137,11 @@ class ToolsHandler {
 				// Tool execution errors (convert to isError: true format):
 				// - permission_denied, permission_check_failed
 				// - wp_error, execution_failed
-				$error_message = $result['error']['message'] ?? 'An error occurred while executing the tool.';
-				$error_code    = $result['_metadata']['error_code'] ?? $result['error']['code'] ?? null;
-				$error_data    = $result['error']['data'] ?? null;
+				$error_message = is_array( $result['error'] )
+					? ( $result['error']['message'] ?? 'An error occurred while executing the tool.' )
+					: (string) $result['error'];
+				$error_code    = $result['_metadata']['error_code'] ?? ( is_array( $result['error'] ) ? ( $result['error']['code'] ?? null ) : null );
+				$error_data    = is_array( $result['error'] ) ? ( $result['error']['data'] ?? null ) : null;
 
 				// Build structured error text so AI clients can distinguish error types.
 				$error_parts = array();
