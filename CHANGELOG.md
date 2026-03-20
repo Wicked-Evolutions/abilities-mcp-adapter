@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.2.0] - 2026-03-20
+
+### Added
+- `discover-abilities` pagination: `limit` and `offset` parameters for paginated discovery
+- `discover-abilities` compact mode: `compact: true` returns only name, category, and tier — reduces response from ~128KB to ~8KB at scale
+- GitHub Releases auto-update fallback — users who install from GitHub get update notifications in wp-admin without a FluentCart license
+
+### Changed
+- Author branding: Influencentricity → Wicked Evolutions in README
+- Store and GitHub install paths documented in README
+
+## [1.1.1] - 2026-03-20
+
+### Added
+- GitHub Releases auto-update fallback in plugin updater
+
+## [1.1.0] - 2026-03-17
+
+### Fixed
+- `execute-ability` error messages no longer swallowed — handle string error format alongside JSON-RPC array format in ToolsHandler
+
 ## [1.0.9] - 2026-03-16
 
 ### Added

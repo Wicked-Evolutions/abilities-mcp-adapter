@@ -55,6 +55,23 @@ final class DiscoverAbilitiesAbility {
 							'type'        => 'string',
 							'description' => 'Keyword search in ability name and description.',
 						),
+						'compact'    => array(
+							'type'        => 'boolean',
+							'description' => 'When true, returns only name, category, and tier — no descriptions or schemas. Reduces response from ~128KB to ~8KB at scale.',
+							'default'     => false,
+						),
+						'limit'      => array(
+							'type'        => 'integer',
+							'description' => 'Maximum number of abilities to return. Use with offset for pagination.',
+							'minimum'     => 1,
+							'maximum'     => 200,
+						),
+						'offset'     => array(
+							'type'        => 'integer',
+							'description' => 'Number of abilities to skip before returning results. Use with limit for pagination.',
+							'minimum'     => 0,
+							'default'     => 0,
+						),
 					),
 				),
 				'output_schema'       => array(
@@ -155,6 +172,9 @@ final class DiscoverAbilitiesAbility {
 		$filter_category   = $input['category'] ?? '';
 		$filter_annotation = $input['annotation'] ?? '';
 		$filter_search     = $input['search'] ?? '';
+		$compact           = ! empty( $input['compact'] );
+		$limit             = isset( $input['limit'] ) ? min( absint( $input['limit'] ), 200 ) : 0;
+		$offset            = isset( $input['offset'] ) ? absint( $input['offset'] ) : 0;
 
 		$ability_list = array();
 		foreach ( $abilities as $ability ) {
@@ -195,14 +215,33 @@ final class DiscoverAbilitiesAbility {
 				}
 			}
 
-			$ability_list[] = array(
-				'name'        => $ability_name,
-				'label'       => $ability->get_label(),
-				'description' => $ability->get_description(),
-				'category'    => $ability->get_category(),
-				'tier'        => $meta['tier'] ?? 'free',
-			);
+			if ( $compact ) {
+				$ability_list[] = array(
+					'name'     => $ability_name,
+					'category' => $ability->get_category(),
+					'tier'     => $meta['tier'] ?? 'free',
+				);
+			} else {
+				$ability_list[] = array(
+					'name'        => $ability_name,
+					'label'       => $ability->get_label(),
+					'description' => $ability->get_description(),
+					'category'    => $ability->get_category(),
+					'tier'        => $meta['tier'] ?? 'free',
+				);
+			}
 		}
+
+		// Pagination — applied after filtering.
+		$total_filtered = count( $ability_list );
+		if ( $limit > 0 ) {
+			$ability_list = array_slice( $ability_list, $offset, $limit );
+		} elseif ( $offset > 0 ) {
+			$ability_list = array_slice( $ability_list, $offset );
+		}
+
+		// Build response.
+		$is_filtered = (bool) ( $filter_category || $filter_annotation || $filter_search );
 
 		// If knowledge/boot exists, put the directive at the top of the response.
 		$has_knowledge_boot = isset( $abilities['knowledge/boot'] );
@@ -219,15 +258,21 @@ final class DiscoverAbilitiesAbility {
 						'action' => 'ask_user',
 					),
 				),
-				'abilities'                        => $ability_list,
-				'total'                            => count( $ability_list ),
-				'filtered'                         => (bool) ( $filter_category || $filter_annotation || $filter_search ),
 			);
 		} else {
-			$response = array(
-				'abilities' => $ability_list,
-				'total'     => count( $ability_list ),
-				'filtered'  => (bool) ( $filter_category || $filter_annotation || $filter_search ),
+			$response = array();
+		}
+
+		$response['abilities'] = $ability_list;
+		$response['total']     = $total_filtered;
+		$response['filtered']  = $is_filtered;
+
+		if ( $limit > 0 ) {
+			$response['_pagination'] = array(
+				'total'    => $total_filtered,
+				'limit'    => $limit,
+				'offset'   => $offset,
+				'has_more' => ( $offset + $limit ) < $total_filtered,
 			);
 		}
 
