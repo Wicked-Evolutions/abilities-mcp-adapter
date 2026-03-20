@@ -88,7 +88,7 @@ final class DiscoverAbilitiesAbility {
 									'category'    => array( 'type' => 'string' ),
 									'tier'        => array( 'type' => 'string' ),
 								),
-								'required'   => array( 'name', 'label', 'description' ),
+								'required'   => array( 'name' ),
 							),
 						),
 					),
