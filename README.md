@@ -111,9 +111,19 @@ This plugin was originally a thin wrapper around `wordpress/mcp-adapter` (Compos
 
 WordPress core (WP 7.0+) includes `WP_AI_Client_Ability_Function_Resolver` which converts abilities to AI tool calls with a `wpab__` prefix. This is designed for the `@wordpress/abilities` JS client. The MCP Adapter provides a different mapping — full MCP protocol compliance with annotations, session management, and multi-transport support. Both approaches coexist; the MCP Adapter is for external AI agent access, the `wpab__` resolver is for WordPress's built-in AI client.
 
+## Evolving Knowledge
+
+We continuously add knowledge docs, skills, and agent patterns to [knowledge.wickedevolutions.com](https://knowledge.wickedevolutions.com).
+
 ## Version
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+## Disclaimer
+
+Humans make mistakes — as we know from the present day and history. Humans trained AI. AI acts accordingly. AI predicts probability based on the context window it holds. It is trained to sound certain, as if everything is truth, and to "fix" everything so the human becomes satisfied.
+
+Learn how to communicate with AI. You are fully responsible for using AI in your life, business, and projects. Using these products is your personal responsibility to learn and own.
 
 ## Author
 
