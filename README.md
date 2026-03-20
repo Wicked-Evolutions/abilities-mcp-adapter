@@ -20,9 +20,20 @@ Converts WordPress abilities into MCP (Model Context Protocol) tools, resources,
 
 ## Installation
 
-1. Download the plugin zip file
-2. Go to Plugins → Add New → Upload Plugin
-3. Upload and activate
+### From our store
+
+Download from [community.wickedevolutions.com/item/abilities-mcp-adapter/](https://community.wickedevolutions.com/item/abilities-mcp-adapter/), then upload via **Plugins → Add New → Upload Plugin**.
+
+### From GitHub
+
+```bash
+cd wp-content/plugins/
+git clone https://github.com/Wicked-Evolutions/abilities-mcp-adapter.git
+```
+
+### Required companion plugin
+
+You also need **[Abilities for AI](https://community.wickedevolutions.com/item/abilities-for-ai/)** — the plugin that registers WordPress abilities. Without it, the Adapter has nothing to expose.
 
 ## Built-in Tools
 
