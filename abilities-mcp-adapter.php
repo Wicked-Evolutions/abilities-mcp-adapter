@@ -32,6 +32,7 @@ new Abilities_MCP_Adapter_Plugin_Updater( array(
 	'item_id'              => Abilities_MCP_Adapter_License_Manager::get_product_id(),
 	'api_url'              => Abilities_MCP_Adapter_License_Manager::STORE_URL,
 	'license_key_callback' => array( 'Abilities_MCP_Adapter_License_Manager', 'get_license_key' ),
+	'github_repo'          => 'Wicked-Evolutions/abilities-mcp-adapter',
 	'show_check_update'    => true,
 ) );
 
