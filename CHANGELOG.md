@@ -88,7 +88,7 @@
 - Plugin slug: `mcp-adapter-for-wordpress` → `abilities-mcp-adapter`
 - Namespace: `WickedEvolutions\McpAdapter` (unchanged)
 - GitHub repo: `Wicked-Evolutions/abilities-mcp-adapter`
-- Deployed to helenawillow.com and wickedevolutions.com with license + permission migration
+- Deployed with license + permission migration
 
 ---
 
