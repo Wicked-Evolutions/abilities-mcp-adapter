@@ -23,9 +23,10 @@ trait McpAbilityHelperTrait {
 	/**
 	 * Checks if ability is publicly exposed via MCP.
 	 *
-	 * Discovery gate priority (XP5):
-	 * 1. `show_in_rest` ability property (WordPress core standard)
-	 * 2. `mcp.public` metadata flag (backward compatibility fallback)
+	 * Discovery gate priority:
+	 * 1. `get_show_in_rest()` method (future-proofing if core adds it)
+	 * 2. `meta.show_in_rest` flag (WordPress core standard)
+	 * 3. `meta.mcp.public` flag (our proprietary flag, backward compatibility)
 	 *
 	 * @param string $ability_name The ability name to check.
 	 *
@@ -51,16 +52,17 @@ trait McpAbilityHelperTrait {
 	/**
 	 * Checks if ability is publicly exposed via MCP (simple boolean version).
 	 *
-	 * Discovery gate priority (XP5):
-	 * 1. `show_in_rest` ability property (WordPress core standard)
-	 * 2. `mcp.public` metadata flag (backward compatibility fallback)
+	 * Discovery gate priority:
+	 * 1. `get_show_in_rest()` method (future-proofing if core adds it)
+	 * 2. `meta.show_in_rest` flag (WordPress core standard, used by core abilities)
+	 * 3. `meta.mcp.public` flag (our proprietary flag, backward compatibility)
 	 *
 	 * @param \WP_Ability $ability The ability object to check.
 	 *
 	 * @return bool True if publicly exposed, false otherwise.
 	 */
 	protected static function is_ability_mcp_public( \WP_Ability $ability ): bool {
-		// Primary gate: show_in_rest (WordPress core standard).
+		// Primary gate: get_show_in_rest() method (future-proofing if core adds it).
 		if ( method_exists( $ability, 'get_show_in_rest' ) ) {
 			$show_in_rest = $ability->get_show_in_rest();
 			if ( null !== $show_in_rest ) {
@@ -68,8 +70,13 @@ trait McpAbilityHelperTrait {
 			}
 		}
 
-		// Fallback: mcp.public metadata flag.
+		// WordPress core standard: meta.show_in_rest (used by core and third-party abilities).
 		$meta = $ability->get_meta();
+		if ( isset( $meta['show_in_rest'] ) ) {
+			return (bool) $meta['show_in_rest'];
+		}
+
+		// Fallback: mcp.public metadata flag (our proprietary flag).
 		return (bool) ( $meta['mcp']['public'] ?? false );
 	}
 
