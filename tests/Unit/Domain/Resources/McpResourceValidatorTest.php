@@ -66,14 +66,15 @@ class McpResourceValidatorTest extends TestCase {
 
 	// ── validate_resource_data() — content requirements ──
 
-	public function test_no_text_or_blob_returns_wp_error(): void {
+	public function test_no_text_or_blob_is_valid(): void {
 		$data = array(
 			'uri'  => 'https://example.com/resource',
 			'name' => 'test',
 		);
 
-		$result = McpResourceValidator::validate_resource_data( $data );
-		$this->assertTrue( is_wp_error( $result ) );
+		// Resources without content are valid — ability-backed resources
+		// load content on-demand during resources/read.
+		$this->assertTrue( McpResourceValidator::validate_resource_data( $data ) );
 	}
 
 	public function test_both_text_and_blob_returns_wp_error(): void {

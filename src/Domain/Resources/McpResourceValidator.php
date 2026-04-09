@@ -98,13 +98,13 @@ class McpResourceValidator {
 			$errors[] = __( 'Resource URI must be a valid URI format', 'mcp-adapter' );
 		}
 
-		// Validate content - must have either text OR blob (but not both).
+		// Validate content — text and blob are mutually exclusive but neither is required
+		// at registration time. Ability-backed resources load content on-demand during
+		// resources/read, so resources/list descriptors have no content fields.
 		$has_text = ! empty( $resource_data['text'] );
 		$has_blob = ! empty( $resource_data['blob'] );
 
-		if ( ! $has_text && ! $has_blob ) {
-			$errors[] = __( 'Resource must have either text or blob content', 'mcp-adapter' );
-		} elseif ( $has_text && $has_blob ) {
+		if ( $has_text && $has_blob ) {
 			$errors[] = __( 'Resource cannot have both text and blob content - only one is allowed', 'mcp-adapter' );
 		}
 
