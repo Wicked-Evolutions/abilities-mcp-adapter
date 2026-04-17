@@ -4,7 +4,7 @@
 
 If you discover a security vulnerability in Abilities MCP Adapter, **do not open a public issue.**
 
-Email: **security@wickedevolutions.com**
+Instead, please use [GitHub's private vulnerability reporting](https://github.com/Wicked-Evolutions/abilities-mcp-adapter/security/advisories/new) to report it directly.
 
 Include:
 - Description of the vulnerability
@@ -22,7 +22,7 @@ This policy covers:
 - Schema transformation and input validation
 - Admin settings page security
 
-For vulnerabilities in the MCP bridge or ability plugins, report to the same email address.
+For vulnerabilities in the MCP bridge or ability plugins, use the same private reporting feature on the relevant repository.
 
 ## Supported Versions
 
