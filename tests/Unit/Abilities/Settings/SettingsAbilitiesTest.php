@@ -147,4 +147,104 @@ final class SettingsAbilitiesTest extends TestCase {
 		$this->assertTrue( $out['success'] );
 		$this->assertTrue( $out['removed'] );
 	}
+
+	// --- B.1: Bucket-membership pre-check on remove-default-bucket3-keyword ---
+
+	public function test_b1_rejects_bucket2_card_number_without_minting_token(): void {
+		$out = SettingsAbilities::execute_remove_default_bucket3_keyword( array( 'keyword' => 'card_number' ) );
+
+		$this->assertFalse( $out['success'] );
+		$this->assertFalse( $out['confirmation_required'] );
+		$this->assertArrayNotHasKey( 'token', $out );
+		$this->assertStringContainsString( 'Bucket 2', $out['message'] );
+		$this->assertStringContainsString( 'Admin', $out['message'] );
+		// Repo state unchanged.
+		$this->assertContains( 'card_number', Repo::get_active_keywords( Repo::BUCKET_PAYMENT ) );
+	}
+
+	public function test_b1_rejects_bucket2_ssn_without_minting_token(): void {
+		$out = SettingsAbilities::execute_remove_default_bucket3_keyword( array( 'keyword' => 'ssn' ) );
+
+		$this->assertFalse( $out['success'] );
+		$this->assertFalse( $out['confirmation_required'] );
+		$this->assertArrayNotHasKey( 'token', $out );
+		$this->assertStringContainsString( 'Bucket 2', $out['message'] );
+	}
+
+	public function test_b1_rejects_bucket2_tax_id_without_minting_token(): void {
+		$out = SettingsAbilities::execute_remove_default_bucket3_keyword( array( 'keyword' => 'tax_id' ) );
+
+		$this->assertFalse( $out['success'] );
+		$this->assertFalse( $out['confirmation_required'] );
+		$this->assertArrayNotHasKey( 'token', $out );
+		$this->assertStringContainsString( 'Bucket 2', $out['message'] );
+	}
+
+	public function test_b1_rejects_unknown_keyword_without_minting_token(): void {
+		$out = SettingsAbilities::execute_remove_default_bucket3_keyword( array( 'keyword' => 'not_a_real_keyword' ) );
+
+		$this->assertFalse( $out['success'] );
+		$this->assertFalse( $out['confirmation_required'] );
+		$this->assertArrayNotHasKey( 'token', $out );
+		$this->assertStringContainsString( 'not in any default redaction list', $out['message'] );
+		$this->assertStringContainsString( 'remove-custom-keyword', $out['message'] );
+	}
+
+	public function test_b1_rejects_empty_keyword_without_minting_token(): void {
+		$out = SettingsAbilities::execute_remove_default_bucket3_keyword( array( 'keyword' => '' ) );
+
+		$this->assertFalse( $out['success'] );
+		$this->assertFalse( $out['confirmation_required'] );
+		$this->assertArrayNotHasKey( 'token', $out );
+		$this->assertStringContainsString( 'non-empty', $out['message'] );
+	}
+
+	public function test_b1_happy_path_bucket3_keyword_still_mints_token(): void {
+		// Bucket 3 default — should still flow through the confirmation path.
+		$out = SettingsAbilities::execute_remove_default_bucket3_keyword( array( 'keyword' => 'phone' ) );
+
+		$this->assertFalse( $out['success'] );
+		$this->assertTrue( $out['confirmation_required'] );
+		$this->assertNotEmpty( $out['token'] );
+		$this->assertStringContainsString( 'phone', $out['summary'] );
+	}
+
+	public function test_b1_bucket2_keyword_with_token_still_rejected(): void {
+		// Even if a (somehow-obtained) token were presented for a Bucket 2 keyword,
+		// the pre-check fires before token consumption.
+		$out = SettingsAbilities::execute_remove_default_bucket3_keyword( array(
+			'keyword'            => 'card_number',
+			'confirmation_token' => 'whatever-token-the-attacker-supplied',
+		) );
+
+		$this->assertFalse( $out['success'] );
+		$this->assertStringContainsString( 'Bucket 2', $out['message'] );
+		// The Bucket 2 default is still in place.
+		$this->assertContains( 'card_number', Repo::get_active_keywords( Repo::BUCKET_PAYMENT ) );
+	}
+
+	public function test_b1_bucket3_case_insensitive_match(): void {
+		// Inputs are lowercased before comparison.
+		$out = SettingsAbilities::execute_remove_default_bucket3_keyword( array( 'keyword' => 'EMAIL' ) );
+
+		$this->assertFalse( $out['success'] );
+		$this->assertTrue( $out['confirmation_required'] );
+	}
+
+	// --- B.1: exempt-ability-from-bucket3 ability-name guard ---
+	//
+	// `wp_get_ability()` is not stubbed in unit tests, so the guard fail-opens
+	// per its documented contract. The existing happy-path test
+	// (test_exempt_ability_from_bucket3_first_call_returns_token) covers that.
+	// When the function exists at runtime on real WP, unknown ability names
+	// short-circuit; integration coverage for that path lives downstream.
+
+	public function test_b1_exempt_ability_rejects_empty_name(): void {
+		$out = SettingsAbilities::execute_exempt_ability_from_bucket3( array( 'ability_name' => '' ) );
+
+		$this->assertFalse( $out['success'] );
+		$this->assertFalse( $out['confirmation_required'] );
+		$this->assertArrayNotHasKey( 'token', $out );
+		$this->assertStringContainsString( 'non-empty', $out['message'] );
+	}
 }

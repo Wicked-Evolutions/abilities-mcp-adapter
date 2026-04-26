@@ -64,6 +64,123 @@ final class SettingsAbilities {
 		return true;
 	}
 
+	/**
+	 * Reject a keyword that is not actually in the Bucket 3 defaults BEFORE
+	 * minting a confirmation token. Synthesis Decision 3 forbids weakening
+	 * Bucket 2 via chat at any granularity — a Bucket 2 keyword arriving on
+	 * the Bucket 3 path must never produce a confirmation prompt.
+	 *
+	 * Returns null when the keyword is a valid Bucket 3 default and the
+	 * caller should proceed. Returns a structured error response array
+	 * otherwise; the caller should return it directly.
+	 *
+	 * @param string $keyword Already lowercased / trimmed.
+	 * @return array<string,mixed>|null
+	 */
+	private static function guard_bucket3_default_keyword( string $keyword ): ?array {
+		if ( '' === $keyword ) {
+			return array(
+				'success'               => false,
+				'confirmation_required' => false,
+				'message'               => 'Keyword must be a non-empty string.',
+			);
+		}
+
+		$bucket3 = array_map( 'strtolower', Repo::bucket3_default_keywords() );
+		if ( in_array( $keyword, $bucket3, true ) ) {
+			return null;
+		}
+
+		$bucket2 = array_map( 'strtolower', Repo::bucket2_default_keywords() );
+		if ( in_array( $keyword, $bucket2, true ) ) {
+			BoundaryEventEmitter::emit(
+				null,
+				'boundary.confirmation.failed',
+				array(
+					'severity'   => 'warn',
+					'user_id'    => (int) get_current_user_id(),
+					'method'     => 'settings/remove-default-bucket3-keyword',
+					'error_code' => 'bucket2_keyword_rejected',
+					'name'       => sanitize_key( $keyword ),
+					'reason'     => 'Bucket 2 weakening is not available via chat — Admin UI only.',
+				)
+			);
+			return array(
+				'success'               => false,
+				'confirmation_required' => false,
+				'message'               => sprintf(
+					"'%s' is a Bucket 2 (payment / regulated) keyword. Bucket 2 weakening is not available via chat. To make this change, use WP Admin → Settings → MCP Safety.",
+					$keyword
+				),
+			);
+		}
+
+		return array(
+			'success'               => false,
+			'confirmation_required' => false,
+			'message'               => sprintf(
+				"'%s' is not in any default redaction list (Bucket 2 or Bucket 3). If it was added as a custom keyword, use settings/remove-custom-keyword instead.",
+				$keyword
+			),
+		);
+	}
+
+	/**
+	 * Reject an unknown ability name BEFORE minting a confirmation token.
+	 *
+	 * Returns null when the ability is known (or when the abilities API is
+	 * unavailable in this context — fail-open is acceptable here because
+	 * exempting a non-existent ability is a no-op at redaction time, just
+	 * a UX nuisance). Returns a structured error response otherwise.
+	 *
+	 * @param string $ability_name
+	 * @param string $caller_ability  The ability invoking this guard (for telemetry).
+	 * @return array<string,mixed>|null
+	 */
+	private static function guard_known_ability_name( string $ability_name, string $caller_ability ): ?array {
+		if ( '' === $ability_name ) {
+			return array(
+				'success'               => false,
+				'confirmation_required' => false,
+				'message'               => 'ability_name must be a non-empty string.',
+			);
+		}
+
+		// If the WP Abilities API isn't loaded (unit tests without the real
+		// plugin), skip the existence check — the repository write itself
+		// will accept any sanitised string and the operator can clean up.
+		if ( ! function_exists( 'wp_get_ability' ) ) {
+			return null;
+		}
+
+		$ability = wp_get_ability( $ability_name );
+		if ( null !== $ability ) {
+			return null;
+		}
+
+		BoundaryEventEmitter::emit(
+			null,
+			'boundary.confirmation.failed',
+			array(
+				'severity'   => 'warn',
+				'user_id'    => (int) get_current_user_id(),
+				'method'     => $caller_ability,
+				'error_code' => 'unknown_ability_name',
+				'name'       => sanitize_text_field( $ability_name ),
+				'reason'     => 'No ability registered under this name.',
+			)
+		);
+
+		return array(
+			'success'               => false,
+			'confirmation_required' => false,
+			'message'               => sprintf(
+				"No ability registered under the name '%s'. Use settings/get-redaction-list or the discover-abilities tool to find the correct ability name.",
+				$ability_name
+			),
+		);
+	}
+
 	// settings/get-redaction-list ----------------------------------------
 
 	private static function register_get_redaction_list(): void {
@@ -381,6 +498,15 @@ final class SettingsAbilities {
 		$ability = 'settings/remove-default-bucket3-keyword';
 		$params  = array( 'keyword' => strtolower( trim( $keyword ) ) );
 
+		// Bucket-membership pre-check (synthesis Decision 3).
+		// Bucket 2 cannot be weakened through chat at any granularity.
+		// Reject before minting a token so the operator is never shown a
+		// confirmation prompt for a keyword that doesn't belong here.
+		$bucket_check = self::guard_bucket3_default_keyword( $params['keyword'] );
+		if ( null !== $bucket_check ) {
+			return $bucket_check;
+		}
+
 		if ( '' === $token ) {
 			$session = ConfirmationTokenStore::current_session_id();
 			$minted  = ConfirmationTokenStore::mint( $session, $ability, $params );
@@ -502,6 +628,13 @@ final class SettingsAbilities {
 
 		$ability = 'settings/exempt-ability-from-bucket3';
 		$params  = array( 'ability_name' => trim( $ability_name ) );
+
+		// Reject unknown ability names BEFORE minting a confirmation token —
+		// otherwise the operator is shown a confirmation for a no-op write.
+		$ability_check = self::guard_known_ability_name( $params['ability_name'], $ability );
+		if ( null !== $ability_check ) {
+			return $ability_check;
+		}
 
 		if ( '' === $token ) {
 			$session = ConfirmationTokenStore::current_session_id();
