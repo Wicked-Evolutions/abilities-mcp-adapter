@@ -62,6 +62,10 @@ final class BoundaryEventEmitter {
 		'retry_after_ms',
 		'batch_size',
 		'body_size',
+		// boundary.redaction_applied counters (per-bucket, values never included):
+		'redaction_count_b1',
+		'redaction_count_b2',
+		'redaction_count_b3',
 	);
 
 	/**
