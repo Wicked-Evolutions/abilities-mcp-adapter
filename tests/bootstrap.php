@@ -114,23 +114,11 @@ if ( ! function_exists( 'sanitize_key' ) ) {
 	}
 }
 
-if ( ! function_exists( 'sanitize_text_field' ) ) {
-	function sanitize_text_field( $str ) {
-		return trim( strip_tags( (string) $str ) );
-	}
-}
-
-if ( ! function_exists( 'do_action' ) ) {
-	function do_action( ...$args ) {
-		// no-op for unit tests
-	}
-}
-
-if ( ! function_exists( 'apply_filters' ) ) {
-	function apply_filters( $hook, $value ) {
-		return $value;
-	}
-}
+// HEAD's simpler apply_filters / do_action / sanitize_text_field stubs
+// removed during integration merge — DB-5's richer versions later in this
+// file are strict supersets. PHP's function_exists() guard would otherwise
+// load these simpler versions first and silently skip DB-5's, breaking
+// OriginValidator filter-injection tests.
 
 if ( ! function_exists( 'is_user_logged_in' ) ) {
 	function is_user_logged_in() {
@@ -150,8 +138,16 @@ if ( ! function_exists( 'esc_html__' ) ) {
 	}
 }
 
+// Filter / action stubs — record-only, with a hook for tests that want to
+// inject filter return values via $GLOBALS['wp_test_filters'][ $hook ].
 if ( ! function_exists( 'apply_filters' ) ) {
 	function apply_filters( $hook, $value ) {
+		if ( isset( $GLOBALS['wp_test_filters'][ $hook ] ) ) {
+			$callback = $GLOBALS['wp_test_filters'][ $hook ];
+			$args     = func_get_args();
+			array_shift( $args ); // drop hook name
+			return call_user_func_array( $callback, $args );
+		}
 		return $value;
 	}
 }
@@ -198,6 +194,60 @@ if ( ! function_exists( 'wp_get_ability' ) ) {
 if ( ! function_exists( 'wp_get_abilities' ) ) {
 	function wp_get_abilities() {
 		return $GLOBALS['wp_test_abilities'];
+	}
+}
+
+if ( ! function_exists( 'home_url' ) ) {
+	function home_url( $path = '', $scheme = null ) {
+		return ( $GLOBALS['wp_test_home_url'] ?? 'https://example.com' ) . $path;
+	}
+}
+
+if ( ! function_exists( 'site_url' ) ) {
+	function site_url( $path = '', $scheme = null ) {
+		return ( $GLOBALS['wp_test_site_url'] ?? 'https://example.com' ) . $path;
+	}
+}
+
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	function wp_parse_url( $url, $component = -1 ) {
+		return parse_url( $url, $component );
+	}
+}
+
+if ( ! function_exists( 'sanitize_text_field' ) ) {
+	function sanitize_text_field( $str ) {
+		$str = (string) $str;
+		$str = preg_replace( '/[\r\n\t\0\x0B]/', '', $str );
+		return trim( $str );
+	}
+}
+
+if ( ! function_exists( 'wp_unslash' ) ) {
+	function wp_unslash( $value ) {
+		return is_string( $value ) ? stripslashes( $value ) : $value;
+	}
+}
+
+// Minimal WP_REST_Request stub — only the surface OriginValidator needs.
+if ( ! class_exists( 'WP_REST_Request' ) ) {
+	class WP_REST_Request {
+		private array $headers = array();
+
+		public function set_header( string $name, string $value ): void {
+			$this->headers[ strtolower( $name ) ] = $value;
+		}
+
+		/**
+		 * Mirrors WP_REST_Request::get_header — case-insensitive lookup,
+		 * returns null when absent.
+		 *
+		 * @param string $name Header name.
+		 * @return string|null
+		 */
+		public function get_header( $name ) {
+			return $this->headers[ strtolower( (string) $name ) ] ?? null;
+		}
 	}
 }
 
