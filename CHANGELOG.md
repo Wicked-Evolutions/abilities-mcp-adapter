@@ -1,5 +1,29 @@
 # Changelog
 
+## [Unreleased] — DB-3 (held for public-alpha hardening Launch Gate)
+
+### Added — Safety Settings UI + AI-callable settings abilities
+- New admin page **Settings → MCP Safety** with four sections:
+  1. Master toggle (off requires checkbox confirmation; Bucket 1 secrets always filtered).
+  2. Redaction keyword list — Bucket 1 read-only; Bucket 2 with per-default warning; Bucket 3 with per-default no warning; custom-add input (Bucket 2 or 3 only); restore defaults.
+  3. Per-ability exemptions — two columns (Bucket 3 left, Bucket 2 right with confirm-on-add warning).
+  4. Trusted proxy — Cloudflare preset / custom CIDR allowlist (consumed by the rate limiter in DB-4).
+- Seven AI-callable abilities, all gated by `manage_options`:
+  - `settings/get-redaction-list` — read state, no friction.
+  - `settings/add-redaction-keyword` — strengthen, no friction.
+  - `settings/remove-custom-keyword` — reverse own additions, no friction.
+  - `settings/restore-redaction-defaults` — restore baseline, no friction.
+  - `settings/remove-default-bucket3-keyword` — weaken Bucket 3 default, **in-chat 1/2 confirmation required**.
+  - `settings/exempt-ability-from-bucket3` — per-ability Bucket 3 unlock, **in-chat 1/2 confirmation required**.
+  - `settings/unexempt-ability-from-bucket3` — re-lock exemption, no friction.
+- One-time confirmation tokens stored as WP transients with 60s TTL, bound to (session, ability, params); single-use; replay-safe.
+- All settings writes emit `boundary.master_toggle.changed`, `boundary.redaction_keywords.changed`, `boundary.ability_exemption.changed`, `boundary.confirmation.failed` events through the existing `BoundaryEventEmitter`.
+- New option keys: `abilities_mcp_redaction_master_enabled`, `abilities_mcp_redaction_keywords` (Bucket 3 customs), `abilities_mcp_bucket2_keywords` (Bucket 2 customs — DB-2 to read after rebase), `abilities_mcp_bucket3_exemptions`, `abilities_mcp_bucket2_exemptions`, `abilities_mcp_redaction_keywords_removed_defaults`, `abilities_mcp_bucket2_keywords_removed_defaults`, `abilities_mcp_trusted_proxy_enabled`, `abilities_mcp_trusted_proxy_mode`, `abilities_mcp_trusted_proxy_allowlist`.
+
+### Held
+- Bucket 2 default-removal, Bucket 2 ability-exemption, master-toggle-off — Admin UI only by design. No ability paths exist for these.
+- Released together with DB-1, DB-2, DB-4, DB-5, DB-6 at the Launch Gate.
+
 ## [1.2.0] - 2026-03-20
 
 ### Added
