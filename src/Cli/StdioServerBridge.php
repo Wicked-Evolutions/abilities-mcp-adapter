@@ -17,6 +17,7 @@ declare( strict_types=1 );
 namespace WickedEvolutions\McpAdapter\Cli;
 
 use WickedEvolutions\McpAdapter\Core\McpServer;
+use WickedEvolutions\McpAdapter\Infrastructure\Redaction\ResponseRedactionGate;
 use WickedEvolutions\McpAdapter\Transport\Infrastructure\RequestRouter;
 
 /**
@@ -219,6 +220,12 @@ class StdioServerBridge {
 				$id,
 				'stdio'
 			);
+
+			// Redact at the response boundary before formatting.
+			$observability_handler = method_exists( $this->server, 'get_observability_handler' )
+				? $this->server->get_observability_handler()
+				: null;
+			$result = ResponseRedactionGate::apply( $result, $method, $params, $id, $observability_handler );
 
 			// If this is a notification (no id), don't send a response
 			if ( null === $id ) {
