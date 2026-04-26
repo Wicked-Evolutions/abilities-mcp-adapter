@@ -104,25 +104,29 @@ final class ResponseRedactionGate {
 	/**
 	 * Pull the ability name out of params for tools/call. Other methods have no ability scope.
 	 *
-	 * The MCP adapter's primary AI-client path goes through the
-	 * `mcp-adapter/execute-ability` meta-tool — `params['name']` is the
-	 * meta-tool, the *real* ability whose response we're about to redact
-	 * lives at `params['arguments']['ability_name']`. Returning the
-	 * meta-tool's name there would defeat any per-ability exemption the
-	 * operator configured on the inner ability. So we unwrap.
+	 * Naming convention: the WordPress Abilities API stores ability names in
+	 * **slash form** (e.g. `fluent-cart/list-customers`). MCP tool names cannot
+	 * contain `/`, so {@see RegisterAbilityAsMcpTool::get_data()} converts
+	 * `/` to `-` when advertising tools over the wire — `tools/call` therefore
+	 * arrives with `params['name']` in **dash form** (e.g.
+	 * `fluent-cart-list-customers`). Per-ability exemptions are stored against
+	 * the slash form (canonical registry name), so any name the gate returns
+	 * MUST be in slash form before reaching `is_ability_exempt()`.
 	 *
-	 * `mcp-adapter/batch-execute` carries multiple inner abilities at
-	 * `params['arguments']['requests'][i]['name']`. A single redaction
-	 * pass over the outer response cannot honour per-ability exemptions
-	 * for each inner result, so we return null — exemptions don't apply
-	 * inside batch-execute. This is a documented limitation, not a
-	 * regression: the safe-by-default behaviour (full redaction) is
-	 * preserved; the sharp edge is that exempt abilities lose their
-	 * exemption when invoked inside a batch.
+	 * The adapter's primary AI-client path goes through the
+	 * `mcp-adapter-execute-ability` meta-tool — `params['name']` is the
+	 * meta-tool, the *real* ability lives at `params['arguments']['ability_name']`
+	 * (which the operator typically passes in slash form already, but we
+	 * still normalise defensively).
+	 *
+	 * `mcp-adapter-batch-execute` carries multiple inner abilities at
+	 * `params['arguments']['requests'][i]['name']`. A single redaction pass
+	 * over the outer response cannot honour per-ability exemptions for each
+	 * inner result, so we return null — exemptions don't apply inside batch.
 	 *
 	 * @param string $method
 	 * @param array  $params
-	 * @return string|null
+	 * @return string|null Slash-form ability name suitable for exemption lookup, or null.
 	 */
 	private static function extract_ability_name( string $method, array $params ): ?string {
 		if ( 'tools/call' !== $method ) {
@@ -133,22 +137,114 @@ final class ResponseRedactionGate {
 			return null;
 		}
 
-		// `mcp-adapter/execute-ability` — the real ability is one level deeper.
-		if ( 'mcp-adapter/execute-ability' === $outer ) {
+		// Meta-tool: `mcp-adapter-execute-ability` — unwrap to the inner ability.
+		if ( 'mcp-adapter-execute-ability' === $outer || 'mcp-adapter/execute-ability' === $outer ) {
 			$args = isset( $params['arguments'] ) && is_array( $params['arguments'] ) ? $params['arguments'] : array();
 			if ( isset( $args['ability_name'] ) && is_string( $args['ability_name'] ) && '' !== $args['ability_name'] ) {
-				return $args['ability_name'];
+				return self::tool_name_to_ability_name( $args['ability_name'] );
 			}
 			return null;
 		}
 
-		// `mcp-adapter/batch-execute` — multiple inner abilities, can't pick one.
-		if ( 'mcp-adapter/batch-execute' === $outer ) {
+		// Meta-tool: `mcp-adapter-batch-execute` — multiple inner abilities, can't pick one.
+		if ( 'mcp-adapter-batch-execute' === $outer || 'mcp-adapter/batch-execute' === $outer ) {
 			return null;
 		}
 
 		// Direct tools/call against an ability registered as an MCP tool.
-		return $outer;
+		// Outer name arrives in dash form — translate back to slash before lookup.
+		return self::tool_name_to_ability_name( $outer );
+	}
+
+	/**
+	 * Translate an MCP tool name (dash form, over-the-wire) to the canonical
+	 * Abilities-API name (slash form, registry storage).
+	 *
+	 * Builds a dash→slash map from `wp_get_abilities()` once per request.
+	 * If the input already contains a `/`, or doesn't match any registered
+	 * ability, the input is returned unchanged — defensive fall-back so
+	 * non-MCP code paths and unit-test contexts continue to work.
+	 *
+	 * @param string $tool_name
+	 * @return string
+	 */
+	public static function tool_name_to_ability_name( string $tool_name ): string {
+		if ( '' === $tool_name ) {
+			return $tool_name;
+		}
+		// Already in slash form — registered abilities never contain a `/`
+		// in their dash-form tool name, so a `/` means we already have the
+		// canonical form.
+		if ( false !== strpos( $tool_name, '/' ) ) {
+			return $tool_name;
+		}
+
+		$map = self::dash_to_slash_map();
+		return $map[ $tool_name ] ?? $tool_name;
+	}
+
+	/**
+	 * Class-level cache for the dash→slash map. Built lazily on first lookup
+	 * and lives for the duration of the request. Tests can reset it via
+	 * {@see reset_name_cache_for_testing()}.
+	 *
+	 * @var array<string,string>|null
+	 */
+	private static ?array $dash_to_slash_cache = null;
+
+	/**
+	 * Build (and cache) a dash→slash lookup of every registered ability.
+	 * Empty when `wp_get_abilities()` is unavailable (e.g. unit-test
+	 * contexts without the WP Abilities API loaded).
+	 *
+	 * @return array<string,string>
+	 */
+	private static function dash_to_slash_map(): array {
+		if ( null !== self::$dash_to_slash_cache ) {
+			return self::$dash_to_slash_cache;
+		}
+
+		$cache = array();
+
+		if ( ! function_exists( 'wp_get_abilities' ) ) {
+			self::$dash_to_slash_cache = $cache;
+			return $cache;
+		}
+
+		$abilities = wp_get_abilities();
+		if ( ! is_array( $abilities ) && ! ( $abilities instanceof \Traversable ) ) {
+			self::$dash_to_slash_cache = $cache;
+			return $cache;
+		}
+
+		foreach ( $abilities as $ability ) {
+			if ( ! is_object( $ability ) || ! method_exists( $ability, 'get_name' ) ) {
+				continue;
+			}
+			$slash = (string) $ability->get_name();
+			if ( '' === $slash ) {
+				continue;
+			}
+			$dash = str_replace( '/', '-', $slash );
+			// First-write wins — duplicate dash forms from differently-named
+			// abilities should not silently rewrite an earlier registration.
+			if ( ! isset( $cache[ $dash ] ) ) {
+				$cache[ $dash ] = $slash;
+			}
+		}
+
+		self::$dash_to_slash_cache = $cache;
+		return $cache;
+	}
+
+	/**
+	 * Reset the dash→slash cache so the next lookup rebuilds it from the
+	 * current ability registry. Test-only.
+	 *
+	 * @internal
+	 */
+	public static function reset_name_cache_for_testing(): void {
+		self::$dash_to_slash_cache = null;
 	}
 
 	/**

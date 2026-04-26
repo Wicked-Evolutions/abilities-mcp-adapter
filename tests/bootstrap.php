@@ -174,6 +174,33 @@ if ( ! function_exists( 'add_filter' ) ) {
 	}
 }
 
+// In-memory ability registry for tests that need to exercise
+// `wp_get_abilities()` (e.g. ResponseRedactionGate's tool-name → ability-name
+// translator). The real Abilities API isn't loaded here.
+if ( ! isset( $GLOBALS['wp_test_abilities'] ) ) {
+	$GLOBALS['wp_test_abilities'] = array();
+}
+
+if ( ! function_exists( 'wp_register_ability' ) ) {
+	function wp_register_ability( $name, $args = array() ) {
+		$ability = new \WP_Ability( $name, $args );
+		$GLOBALS['wp_test_abilities'][ $name ] = $ability;
+		return $ability;
+	}
+}
+
+if ( ! function_exists( 'wp_get_ability' ) ) {
+	function wp_get_ability( $name ) {
+		return $GLOBALS['wp_test_abilities'][ $name ] ?? null;
+	}
+}
+
+if ( ! function_exists( 'wp_get_abilities' ) ) {
+	function wp_get_abilities() {
+		return $GLOBALS['wp_test_abilities'];
+	}
+}
+
 if ( ! class_exists( 'WP_Ability' ) ) {
 	class WP_Ability {
 		private $name;
