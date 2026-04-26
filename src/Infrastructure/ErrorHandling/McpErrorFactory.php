@@ -41,6 +41,7 @@ class McpErrorFactory {
 	public const PROMPT_NOT_FOUND   = -32004; // Prompt not found
 	public const PERMISSION_DENIED  = -32008; // Access denied/forbidden
 	public const UNAUTHORIZED       = -32010; // Authentication required
+	public const RATE_LIMITED       = -32099; // Request denied by rate limiter (HTTP 429)
 
 	/**
 	 * Create a standardized JSON-RPC error response.
@@ -327,6 +328,31 @@ class McpErrorFactory {
 	}
 
 	/**
+	 * Create a rate-limited error response (HTTP 429).
+	 *
+	 * @param mixed  $id              The request ID.
+	 * @param int    $retry_after_ms  Suggested wait before retrying.
+	 * @param int    $limit           The limit that was exceeded.
+	 * @param int    $window          Window length in seconds.
+	 * @param string $dimension       Which window tripped: 'ip' or 'user'.
+	 *
+	 * @return array
+	 */
+	public static function rate_limited( $id, int $retry_after_ms, int $limit, int $window, string $dimension ): array {
+		return self::create_error_response(
+			$id,
+			self::RATE_LIMITED,
+			__( 'Rate limit exceeded', 'mcp-adapter' ),
+			array(
+				'retry_after_ms' => $retry_after_ms,
+				'limit'          => $limit,
+				'window'         => $window,
+				'dimension'      => $dimension,
+			)
+		);
+	}
+
+	/**
 	 * Translate MCP error code to appropriate HTTP status code.
 	 *
 	 * Maps JSON-RPC error codes to HTTP status codes according to best practices:
@@ -353,6 +379,9 @@ class McpErrorFactory {
 
 			case self::PERMISSION_DENIED: // Access forbidden
 				return 403;
+
+			case self::RATE_LIMITED:     // Rate limit exceeded
+				return 429;
 
 			// Resource not found errors
 			case self::RESOURCE_NOT_FOUND:

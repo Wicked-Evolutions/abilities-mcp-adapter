@@ -45,13 +45,20 @@ if ( file_exists( $autoloader ) ) {
 	return;
 }
 
-use WickedEvolutions\McpAdapter\Core\McpAdapter;
+use WickedEvolutions\McpAdapter\Abilities\Settings\SettingsAbilities;
 use WickedEvolutions\McpAdapter\Admin\AbilitySettingsPage;
+use WickedEvolutions\McpAdapter\Admin\SafetySettingsPage;
+use WickedEvolutions\McpAdapter\Core\McpAdapter;
+use WickedEvolutions\McpAdapter\RateLimit\TrustedProxyResolver;
 
-// Register admin settings page (license + ability permissions).
+// Register admin settings pages (license + ability permissions + safety settings).
 if ( is_admin() ) {
 	AbilitySettingsPage::register();
+	SafetySettingsPage::register();
 }
+
+// Register safety-settings abilities inside the Abilities API init hook.
+add_action( 'wp_abilities_api_init', array( SettingsAbilities::class, 'register_all' ) );
 
 // Enable MCP tool validation — silently drops invalid tools instead of breaking all tools.
 add_filter( 'mcp_adapter_validation_enabled', '__return_true' );
@@ -99,3 +106,31 @@ add_action( 'init', function() {
 	}
 	McpAdapter::instance();
 }, 5 );
+
+// Rate-limiter trusted-proxy support: weekly Cloudflare IP refresh.
+add_filter( 'cron_schedules', static function ( $schedules ) {
+	if ( ! isset( $schedules['abilities_mcp_weekly'] ) ) {
+		$schedules['abilities_mcp_weekly'] = array(
+			'interval' => 7 * DAY_IN_SECONDS,
+			'display'  => __( 'Once Weekly (Abilities MCP)', 'mcp-adapter' ),
+		);
+	}
+	return $schedules;
+} );
+add_action( TrustedProxyResolver::CRON_HOOK, array( TrustedProxyResolver::class, 'refresh_cloudflare_ips' ) );
+add_action( 'init', static function () {
+	if ( function_exists( 'wp_next_scheduled' ) && function_exists( 'wp_schedule_event' )
+		&& ! wp_next_scheduled( TrustedProxyResolver::CRON_HOOK )
+	) {
+		wp_schedule_event( time() + HOUR_IN_SECONDS, 'abilities_mcp_weekly', TrustedProxyResolver::CRON_HOOK );
+	}
+}, 20 );
+
+register_deactivation_hook( __FILE__, static function () {
+	if ( function_exists( 'wp_next_scheduled' ) && function_exists( 'wp_unschedule_event' ) ) {
+		$timestamp = wp_next_scheduled( TrustedProxyResolver::CRON_HOOK );
+		if ( $timestamp ) {
+			wp_unschedule_event( $timestamp, TrustedProxyResolver::CRON_HOOK );
+		}
+	}
+} );

@@ -15,6 +15,7 @@ namespace WickedEvolutions\McpAdapter\Transport\Infrastructure;
 
 use WickedEvolutions\McpAdapter\Infrastructure\ErrorHandling\McpErrorFactory;
 use WickedEvolutions\McpAdapter\Infrastructure\Observability\BoundaryEventEmitter;
+use WickedEvolutions\McpAdapter\Infrastructure\Redaction\ResponseRedactionGate;
 
 /**
  * Handles HTTP request routing and processing for MCP transports.
@@ -44,6 +45,8 @@ class HttpRequestHandler {
 	/**
 	 * Route HTTP request to appropriate handler.
 	 *
+	 * GET requests stream SSE and exit — they never return.
+	 *
 	 * @param \WickedEvolutions\McpAdapter\Transport\Infrastructure\HttpRequestContext $context The HTTP request context.
 	 *
 	 * @return \WP_REST_Response HTTP response.
@@ -54,9 +57,13 @@ class HttpRequestHandler {
 			return $this->handle_mcp_request( $context );
 		}
 
-		// Handle GET requests (listening for messages from server via SSE)
+		// Handle GET requests (SSE stream). This call does not return — the
+		// stream loop calls exit() after the duration cap or on client abort.
 		if ( 'GET' === $context->method ) {
-			return $this->handle_sse_request( $context );
+			$this->handle_sse_request( $context );
+			// Defensive fallthrough: handle_sse_request() exits, but if some
+			// unforeseen path returns we fail closed with an empty 200.
+			return new \WP_REST_Response( null, 200 );
 		}
 
 		// Handle DELETE requests (session termination)
@@ -232,6 +239,32 @@ class HttpRequestHandler {
 			$context
 		);
 
+		// Sequencing at the post-route boundary (Launch Gate integration):
+		//   1. Rate-limit short-circuit already happened inside route_request().
+		//      If $result is a RATE_LIMITED envelope, surface Retry-After here
+		//      so the client sees the hint as an HTTP header.
+		//   2. Redaction gate transforms the body. The gate preserves
+		//      _session_id / _session_token markers so the session flow below
+		//      keeps working unchanged.
+		//   3. CORS headers (DB-5) are added later, on rest_post_dispatch —
+		//      they don't run inside this method and so don't appear here.
+
+		// (1) Rate-limiter Retry-After hint.
+		if ( isset( $result['error']['code'], $result['error']['data']['retry_after_ms'] )
+			&& McpErrorFactory::RATE_LIMITED === $result['error']['code']
+			&& is_numeric( $result['error']['data']['retry_after_ms'] )
+		) {
+			$retry_seconds = (int) ceil( ( (int) $result['error']['data']['retry_after_ms'] ) / 1000 );
+			$this->add_response_header( 'Retry-After', (string) max( 1, $retry_seconds ) );
+		}
+
+		// (2) Response redaction gate.
+		$server                = $this->transport_context->mcp_server;
+		$observability_handler = $server && method_exists( $server, 'get_observability_handler' )
+			? $server->get_observability_handler()
+			: null;
+		$result = ResponseRedactionGate::apply( $result, $method, $params, $request_id, $observability_handler );
+
 		// Handle session headers if provided by router (session creation during initialize).
 		if ( isset( $result['_session_id'] ) ) {
 			$this->emit_session_event( $context, 'boundary.session.init', (string) $result['_session_id'], $params );
@@ -260,18 +293,74 @@ class HttpRequestHandler {
 
 
 	/**
-	 * Handle GET requests (SSE streaming).
+	 * Bounded SSE stream duration (seconds). Caps how long a single GET holds
+	 * a worker. On lsphp/CageFS hosts (Hostinger) Entry Processes are limited
+	 * per-user; an unbounded stream would starve the pool. Clients should
+	 * reconnect (future: with Last-Event-ID resumption) when the stream ends.
+	 */
+	private const SSE_DURATION_CAP_SEC = 60;
+
+	/**
+	 * Heartbeat interval inside the SSE stream (seconds).
+	 */
+	private const SSE_HEARTBEAT_INTERVAL_SEC = 15;
+
+	/**
+	 * Handle GET requests with a minimal SSE stream.
+	 *
+	 * Sends SSE-formatted comment lines (`: heartbeat\n\n`) at a fixed
+	 * interval until the duration cap is reached or the client disconnects.
+	 * No server-initiated MCP events are emitted yet — this is the spec's
+	 * "yes, here's an SSE stream" path with heartbeat-only payload.
+	 *
+	 * Auth and Origin have already been validated by check_permission(). This
+	 * method always exits; the return type is void so callers know not to
+	 * expect a response object.
 	 *
 	 * @param \WickedEvolutions\McpAdapter\Transport\Infrastructure\HttpRequestContext $context The HTTP request context.
 	 *
-	 * @return \WP_REST_Response SSE response.
+	 * @return void
 	 */
-	private function handle_sse_request( HttpRequestContext $context ): \WP_REST_Response {
-		// SSE streaming not yet implemented
-		return new \WP_REST_Response(
-			McpErrorFactory::internal_error( 0, 'SSE streaming not yet implemented' ),
-			405
-		);
+	private function handle_sse_request( HttpRequestContext $context ): void {
+		// Disable any output buffering / compression that would defeat streaming.
+		// zlib.output_compression breaks SSE because it batches output.
+		@ini_set( 'zlib.output_compression', '0' ); // phpcs:ignore WordPress.PHP.IniSet
+		while ( ob_get_level() > 0 ) {
+			ob_end_clean();
+		}
+
+		status_header( 200 );
+		header( 'Content-Type: text/event-stream' );
+		header( 'Cache-Control: no-cache, no-store, must-revalidate, max-age=0' );
+		header( 'Connection: keep-alive' );
+		header( 'X-Accel-Buffering: no' ); // Tell nginx (if reverse-proxying) not to buffer.
+
+		// Allow long execution; bounded by SSE_DURATION_CAP_SEC below. ignore_user_abort=false
+		// so PHP notices client disconnect via connection_aborted().
+		set_time_limit( 0 );
+		ignore_user_abort( false );
+
+		$start = time();
+
+		while ( ( time() - $start ) < self::SSE_DURATION_CAP_SEC ) {
+			// SSE comment line — keepalive, not a real event. Two newlines terminate the frame.
+			echo ": heartbeat\n\n";
+
+			if ( ob_get_level() > 0 ) {
+				@ob_flush();
+			}
+			@flush();
+
+			if ( connection_aborted() ) {
+				break;
+			}
+
+			sleep( self::SSE_HEARTBEAT_INTERVAL_SEC );
+		}
+
+		// Bypass WordPress response serialisation — we have already written the
+		// stream and any further output would corrupt the SSE frame sequence.
+		exit;
 	}
 
 	/**
@@ -301,6 +390,21 @@ class HttpRequestHandler {
 	 */
 	private function get_transport_name(): string {
 		return 'HTTP';
+	}
+
+	/**
+	 * Public emitter for transport-layer rejections that originate outside
+	 * this handler (e.g. Origin allowlist failure in HttpTransport). Routes
+	 * through the same private helper used for in-handler errors so all
+	 * `boundary.transport.error` events share one tag-shape and sanitiser.
+	 *
+	 * @param HttpRequestContext $context     The HTTP request context.
+	 * @param string             $error_code  Why the error occurred.
+	 * @param int                $status_code HTTP status code returned.
+	 * @param array              $extra       Additional metadata-only tags.
+	 */
+	public function record_transport_error( HttpRequestContext $context, string $error_code, int $status_code, array $extra = array() ): void {
+		$this->emit_transport_error( $context, $error_code, $status_code, $extra );
 	}
 
 	/**
