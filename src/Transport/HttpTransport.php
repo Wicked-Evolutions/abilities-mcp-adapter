@@ -22,6 +22,7 @@ use WickedEvolutions\McpAdapter\Transport\Infrastructure\HttpRequestContext;
 use WickedEvolutions\McpAdapter\Transport\Infrastructure\HttpRequestHandler;
 use WickedEvolutions\McpAdapter\Transport\Infrastructure\McpTransportContext;
 use WickedEvolutions\McpAdapter\Transport\Infrastructure\McpTransportHelperTrait;
+use WickedEvolutions\McpAdapter\Transport\Infrastructure\OriginValidator;
 
 /**
  * MCP HTTP Transport - Unified transport for both proxy and direct clients
@@ -46,6 +47,18 @@ class HttpTransport implements McpRestTransportInterface {
 	public function __construct( McpTransportContext $transport_context ) {
 		$this->request_handler = new HttpRequestHandler( $transport_context );
 		add_action( 'rest_api_init', array( $this, 'register_routes' ), 16 );
+
+		// Disable WordPress core's default CORS handling for the entire REST API.
+		// Core's `rest_send_cors_headers()` echoes any Origin without an allowlist
+		// check and uses a header allowlist that excludes `Mcp-Session-Id` and
+		// `Mcp-Session-Token`. We replace it with our own per-response emission
+		// (see emit_cors_headers()) gated by OriginValidator.
+		add_filter( 'rest_send_cors_headers', '__return_false' );
+
+		// Emit our own CORS headers on every dispatched REST response. Filtering
+		// at this layer (rather than per-route) ensures headers are present on
+		// error responses too, including the 401/403 returned by check_permission.
+		add_filter( 'rest_post_dispatch', array( $this, 'emit_cors_headers' ), 10, 3 );
 	}
 
 	/**
@@ -55,12 +68,14 @@ class HttpTransport implements McpRestTransportInterface {
 		// Get server info from request handler's transport context
 		$server = $this->request_handler->transport_context->mcp_server;
 
-		// Single endpoint for MCP communication (POST, GET for SSE, DELETE for session termination)
+		// Single endpoint for MCP communication.
+		// POST = JSON-RPC requests, GET = SSE stream, DELETE = session termination,
+		// OPTIONS = CORS preflight (handled before permission_callback by short-circuit).
 		register_rest_route(
 			$server->get_server_route_namespace(),
 			$server->get_server_route(),
 			array(
-				'methods'             => array( 'POST', 'GET', 'DELETE' ),
+				'methods'             => array( 'POST', 'GET', 'DELETE', 'OPTIONS' ),
 				'callback'            => array( $this, 'handle_request' ),
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
@@ -76,6 +91,34 @@ class HttpTransport implements McpRestTransportInterface {
 	 */
 	public function check_permission( \WP_REST_Request $request ) {
 		$context = new HttpRequestContext( $request );
+
+		// Origin allowlist runs BEFORE auth. Defense-in-depth against DNS rebinding.
+		// Independent of authentication: a request with an allowed Origin and no
+		// auth still gets 401; a request with valid auth from a disallowed Origin
+		// still gets 403. Both checks are independent.
+		//
+		// OPTIONS (preflight) skips the Origin check here so the browser can
+		// negotiate; handle_preflight() applies its own allowlist when deciding
+		// whether to echo Access-Control-Allow-Origin.
+		if ( 'OPTIONS' !== $context->method && ! OriginValidator::is_allowed( $request ) ) {
+			$this->request_handler->record_transport_error(
+				$context,
+				'origin_not_allowed',
+				403,
+				array( 'origin' => $this->safe_origin_tag( $request ) )
+			);
+			return new \WP_Error(
+				'rest_forbidden',
+				'Origin not allowed',
+				array( 'status' => 403 )
+			);
+		}
+
+		// OPTIONS preflight is permitted unconditionally — the actual cross-origin
+		// decision is made via the echoed Allow-Origin header (or its absence).
+		if ( 'OPTIONS' === $context->method ) {
+			return true;
+		}
 
 		// Check permission using callback or default
 		$transport_context = $this->request_handler->transport_context;
@@ -181,6 +224,106 @@ class HttpTransport implements McpRestTransportInterface {
 	public function handle_request( \WP_REST_Request $request ): \WP_REST_Response {
 		$context = new HttpRequestContext( $request );
 
+		if ( 'OPTIONS' === $context->method ) {
+			return $this->handle_preflight( $request );
+		}
+
 		return $this->request_handler->handle_request( $context );
+	}
+
+	/**
+	 * Handle CORS preflight (OPTIONS) requests.
+	 *
+	 * Returns 204 No Content with full CORS headers. Origin echo is gated by
+	 * OriginValidator: disallowed origins get a 204 with NO Allow-Origin header,
+	 * which causes the browser to fail the preflight (correct behaviour). We do
+	 * not return 403 on disallowed Origin for OPTIONS — preflight failures are
+	 * signalled by header absence, per CORS spec.
+	 *
+	 * @param \WP_REST_Request<array<string, mixed>> $request The request object.
+	 * @return \WP_REST_Response 204 response with CORS headers.
+	 */
+	private function handle_preflight( \WP_REST_Request $request ): \WP_REST_Response {
+		$response = new \WP_REST_Response( null, 204 );
+
+		$echo_origin = OriginValidator::echoable_origin( $request );
+		if ( '' !== $echo_origin ) {
+			$response->header( 'Access-Control-Allow-Origin', $echo_origin );
+			$response->header( 'Access-Control-Allow-Credentials', 'true' );
+			$response->header( 'Access-Control-Allow-Methods', 'POST, GET, DELETE, OPTIONS' );
+			$response->header( 'Access-Control-Allow-Headers', 'Content-Type, Mcp-Session-Id, Mcp-Session-Token, Authorization' );
+			$response->header( 'Access-Control-Max-Age', '600' );
+		}
+
+		// Always advertise that responses vary by Origin so caches keyed on URL
+		// alone don't serve a same-origin-cached response to a cross-origin client.
+		$response->header( 'Vary', 'Origin' );
+
+		return $response;
+	}
+
+	/**
+	 * Emit CORS headers on every dispatched REST response that targets this
+	 * transport's namespace. Wired via `rest_post_dispatch` in the constructor.
+	 *
+	 * Wildcard `*` is never used — incompatible with Allow-Credentials: true.
+	 * Echo is gated by OriginValidator; disallowed Origins receive no
+	 * Access-Control-Allow-Origin header and the browser's same-origin policy
+	 * blocks the response client-side.
+	 *
+	 * @param \WP_HTTP_Response                       $response The dispatched response.
+	 * @param \WP_REST_Server                         $server   The REST server instance.
+	 * @param \WP_REST_Request<array<string, mixed>> $request  The original request.
+	 *
+	 * @return \WP_HTTP_Response
+	 */
+	public function emit_cors_headers( $response, $server, $request ) {
+		if ( ! $response instanceof \WP_REST_Response || ! $request instanceof \WP_REST_Request ) {
+			return $response;
+		}
+
+		// Only act on requests for this transport's route namespace.
+		$mcp_server = $this->request_handler->transport_context->mcp_server;
+		$ns         = $mcp_server->get_server_route_namespace();
+		$route      = $request->get_route();
+		if ( strpos( $route, '/' . $ns . '/' ) !== 0 ) {
+			return $response;
+		}
+
+		// Vary: Origin is always set so shared caches don't cross-serve responses.
+		$response->header( 'Vary', 'Origin' );
+
+		$echo_origin = OriginValidator::echoable_origin( $request );
+		if ( '' === $echo_origin ) {
+			return $response;
+		}
+
+		$response->header( 'Access-Control-Allow-Origin', $echo_origin );
+		$response->header( 'Access-Control-Allow-Credentials', 'true' );
+		$response->header( 'Access-Control-Expose-Headers', 'Mcp-Session-Id, Mcp-Session-Token' );
+
+		return $response;
+	}
+
+	/**
+	 * Sanitize the Origin header for use as an observability tag.
+	 *
+	 * Truncates to a sensible length and strips control characters; the raw
+	 * header value would otherwise pass through to telemetry. Returns '' when
+	 * no Origin was present (server-to-server bridge traffic).
+	 *
+	 * @param \WP_REST_Request<array<string, mixed>> $request The REST request.
+	 * @return string Sanitised Origin string suitable for logging.
+	 */
+	private function safe_origin_tag( \WP_REST_Request $request ): string {
+		$origin = $request->get_header( 'origin' );
+		if ( ! is_string( $origin ) || '' === $origin ) {
+			return '';
+		}
+		$origin = sanitize_text_field( $origin );
+		if ( strlen( $origin ) > 255 ) {
+			$origin = substr( $origin, 0, 255 );
+		}
+		return $origin;
 	}
 }
