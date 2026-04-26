@@ -95,12 +95,11 @@ class RequestRouter {
 		);
 
 		// Rate-limit gate — runs after auth resolves, before handler dispatch.
-		// `initialize` is exempted so a brand-new client can always negotiate.
-		if ( 'initialize' !== $method ) {
-			$rate_limit_result = $this->apply_rate_limit( $method, $request_id, $common_tags, $start_time, $http_context );
-			if ( null !== $rate_limit_result ) {
-				return $rate_limit_result;
-			}
+		// `initialize` runs against a separate, IP-only window so an authenticated
+		// bad client can't loop the handshake without bound.
+		$rate_limit_result = $this->apply_rate_limit( $method, $request_id, $common_tags, $start_time, $http_context );
+		if ( null !== $rate_limit_result ) {
+			return $rate_limit_result;
 		}
 
 		try {
@@ -191,7 +190,9 @@ class RequestRouter {
 			'client_name' => $client_name,
 		);
 
-		$verdict = $this->rate_limiter->check( $method, $client_ip, $user_id, $site_key, $tags_for_filter );
+		$verdict = 'initialize' === $method
+			? $this->rate_limiter->check_initialize( $client_ip, $site_key, $tags_for_filter )
+			: $this->rate_limiter->check( $method, $client_ip, $user_id, $site_key, $tags_for_filter );
 
 		if ( ( $verdict[0] ?? '' ) !== 'deny' ) {
 			return null;

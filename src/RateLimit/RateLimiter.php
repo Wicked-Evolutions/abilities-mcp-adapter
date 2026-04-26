@@ -24,9 +24,10 @@ class RateLimiter {
 	public const DIMENSION_IP   = 'ip';
 	public const DIMENSION_USER = 'user';
 
-	public const DEFAULT_LIMIT_IP     = 60;
-	public const DEFAULT_LIMIT_USER   = 60;
-	public const DEFAULT_WINDOW_SECS  = 60;
+	public const DEFAULT_LIMIT_IP         = 60;
+	public const DEFAULT_LIMIT_USER       = 60;
+	public const DEFAULT_LIMIT_INITIALIZE = 30;
+	public const DEFAULT_WINDOW_SECS      = 60;
 
 	private CounterStore $store;
 
@@ -86,6 +87,49 @@ class RateLimiter {
 	}
 
 	/**
+	 * Decide whether an `initialize` request should proceed.
+	 *
+	 * Initialize is the pre-auth handshake, so only an IP-keyed window
+	 * applies — but tighter than the post-auth limit to keep a bad client
+	 * from looping handshakes without bound.
+	 *
+	 * Returns the same verdict shape as {@see check()}.
+	 *
+	 * @param string $client_ip
+	 * @param string $site_key
+	 * @param array  $tags
+	 * @return array{0:string,1?:int,2?:string,3?:string,4?:int,5?:int}
+	 */
+	public function check_initialize( string $client_ip, string $site_key, array $tags = array() ): array {
+		$filter_verdict = $this->run_filter( 'initialize', $tags );
+		if ( null !== $filter_verdict ) {
+			return $filter_verdict;
+		}
+
+		// No usable IP → can't bucket; fail open. (Only happens when REMOTE_ADDR
+		// is missing or invalid, which the resolver already filters.)
+		if ( '' === $client_ip ) {
+			return array( 'allow' );
+		}
+
+		$now    = time();
+		$window = $this->config_int( 'abilities_mcp_rate_limit_window_seconds', self::DEFAULT_WINDOW_SECS, 1 );
+		$limit  = $this->config_int( 'abilities_mcp_initialize_rate_limit_per_minute_ip', self::DEFAULT_LIMIT_INITIALIZE, 1 );
+
+		$bucket = (int) floor( $now / $window );
+		$ttl    = $window * 2;
+
+		$key   = self::initialize_ip_key( $client_ip, $site_key, $bucket );
+		$count = $this->store->increment( $key, $ttl );
+		if ( $count > $limit ) {
+			$retry = $this->retry_after_seconds( $now, $bucket, $window );
+			return array( 'deny', $retry, 'initialize_ip_limit', self::DIMENSION_IP, $limit, $window );
+		}
+
+		return array( 'allow' );
+	}
+
+	/**
 	 * Counter key for the IP window. SHA-256 first 16 hex chars keep the
 	 * key compact and avoid leaking raw IPs into cache key tooling.
 	 *
@@ -97,6 +141,15 @@ class RateLimiter {
 	public static function ip_key( string $ip, string $site_key, int $bucket ): string {
 		$hash = substr( hash( 'sha256', $ip . '|' . $site_key ), 0, 16 );
 		return 'abmcp_rl_ip_' . $hash . '_' . $bucket;
+	}
+
+	/**
+	 * Key for the initialize-only IP window. Distinct prefix so the
+	 * post-auth IP budget and the initialize budget don't share counters.
+	 */
+	public static function initialize_ip_key( string $ip, string $site_key, int $bucket ): string {
+		$hash = substr( hash( 'sha256', $ip . '|' . $site_key ), 0, 16 );
+		return 'abmcp_rl_init_' . $hash . '_' . $bucket;
 	}
 
 	public static function user_key( int $user_id, string $site_key, int $bucket ): string {

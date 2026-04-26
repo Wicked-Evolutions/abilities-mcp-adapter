@@ -144,4 +144,71 @@ class RateLimiterTest extends TestCase {
 			$this->assertSame( 'allow', $limiter->check( 'tools/call', '198.51.100.1', 5, 'srv|1' )[0] );
 		}
 	}
+
+	// --- Initialize-only window ---
+
+	public function test_initialize_window_denies_31st_request(): void {
+		$limiter = $this->make_limiter();
+		for ( $i = 1; $i <= 30; $i++ ) {
+			$this->assertSame( 'allow', $limiter->check_initialize( '198.51.100.1', 'srv|1' )[0], "initialize request $i should be allowed" );
+		}
+		$verdict = $limiter->check_initialize( '198.51.100.1', 'srv|1' );
+		$this->assertSame( 'deny', $verdict[0] );
+		$this->assertSame( RateLimiter::DIMENSION_IP, $verdict[3] );
+		$this->assertSame( 30, $verdict[4] );
+		$this->assertSame( 60, $verdict[5] );
+		$this->assertSame( 'initialize_ip_limit', $verdict[2] );
+		$this->assertGreaterThanOrEqual( 1, $verdict[1] );
+	}
+
+	public function test_initialize_window_isolated_from_main_ip_window(): void {
+		$limiter = $this->make_limiter();
+		// Burn through the initialize budget.
+		for ( $i = 1; $i <= 30; $i++ ) {
+			$this->assertSame( 'allow', $limiter->check_initialize( '198.51.100.1', 'srv|1' )[0] );
+		}
+		// Initialize is now at the limit, but the post-auth IP window
+		// still has its full 60 budget — they don't share counters.
+		for ( $i = 1; $i <= 60; $i++ ) {
+			$this->assertSame( 'allow', $limiter->check( 'tools/list', '198.51.100.1', 0, 'srv|1' )[0], "post-auth request $i should be allowed" );
+		}
+	}
+
+	public function test_initialize_window_per_ip_isolated(): void {
+		$limiter = $this->make_limiter();
+		for ( $i = 1; $i <= 30; $i++ ) {
+			$this->assertSame( 'allow', $limiter->check_initialize( '198.51.100.1', 'srv|1' )[0] );
+		}
+		// Different IP — fresh budget.
+		$this->assertSame( 'allow', $limiter->check_initialize( '198.51.100.2', 'srv|1' )[0] );
+	}
+
+	public function test_initialize_filter_lowers_limit(): void {
+		$limiter = $this->make_limiter();
+		add_filter( 'abilities_mcp_initialize_rate_limit_per_minute_ip', static function () {
+			return 2;
+		} );
+		$this->assertSame( 'allow', $limiter->check_initialize( '198.51.100.1', 'srv|1' )[0] );
+		$this->assertSame( 'allow', $limiter->check_initialize( '198.51.100.1', 'srv|1' )[0] );
+		$verdict = $limiter->check_initialize( '198.51.100.1', 'srv|1' );
+		$this->assertSame( 'deny', $verdict[0] );
+		$this->assertSame( 2, $verdict[4] );
+	}
+
+	public function test_initialize_request_filter_can_override(): void {
+		$limiter = $this->make_limiter();
+		add_filter( 'mcp_adapter_request_rate_limit', static function ( $verdict, $method ) {
+			return 'initialize' === $method ? array( 'allow' ) : $verdict;
+		}, 10, 3 );
+		// Even past the default limit, the filter keeps it allowing.
+		for ( $i = 1; $i <= 100; $i++ ) {
+			$this->assertSame( 'allow', $limiter->check_initialize( '198.51.100.1', 'srv|1' )[0] );
+		}
+	}
+
+	public function test_initialize_with_empty_ip_allows_through(): void {
+		$limiter = $this->make_limiter();
+		// No usable IP — fail open. (Resolver should already filter, this is belt-and-braces.)
+		$this->assertSame( 'allow', $limiter->check_initialize( '', 'srv|1' )[0] );
+	}
 }
