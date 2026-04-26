@@ -45,13 +45,19 @@ if ( file_exists( $autoloader ) ) {
 	return;
 }
 
-use WickedEvolutions\McpAdapter\Core\McpAdapter;
+use WickedEvolutions\McpAdapter\Abilities\Settings\SettingsAbilities;
 use WickedEvolutions\McpAdapter\Admin\AbilitySettingsPage;
+use WickedEvolutions\McpAdapter\Admin\SafetySettingsPage;
+use WickedEvolutions\McpAdapter\Core\McpAdapter;
 
-// Register admin settings page (license + ability permissions).
+// Register admin settings pages (license + ability permissions + safety settings).
 if ( is_admin() ) {
 	AbilitySettingsPage::register();
+	SafetySettingsPage::register();
 }
+
+// Register safety-settings abilities inside the Abilities API init hook.
+add_action( 'wp_abilities_api_init', array( SettingsAbilities::class, 'register_all' ) );
 
 // Enable MCP tool validation — silently drops invalid tools instead of breaking all tools.
 add_filter( 'mcp_adapter_validation_enabled', '__return_true' );
