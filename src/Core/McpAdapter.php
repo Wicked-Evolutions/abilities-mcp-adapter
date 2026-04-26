@@ -87,6 +87,13 @@ final class McpAdapter {
 		$this->maybe_create_default_server();
 
 		do_action( 'mcp_adapter_init', $this );
+
+		// Discoverability hook for observability handlers. Listeners receive
+		// the adapter instance and can attach per-server overrides without
+		// the adapter knowing about them. Fired AFTER mcp_adapter_init so
+		// servers are already registered when listeners run.
+		do_action( 'mcp_adapter_register_observability', $this );
+
 		$this->register_wp_cli_commands();
 		self::$initialized = true;
 	}

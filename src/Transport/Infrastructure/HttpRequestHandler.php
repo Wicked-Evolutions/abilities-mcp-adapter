@@ -14,6 +14,7 @@ declare( strict_types=1 );
 namespace WickedEvolutions\McpAdapter\Transport\Infrastructure;
 
 use WickedEvolutions\McpAdapter\Infrastructure\ErrorHandling\McpErrorFactory;
+use WickedEvolutions\McpAdapter\Infrastructure\Observability\BoundaryEventEmitter;
 
 /**
  * Handles HTTP request routing and processing for MCP transports.
@@ -82,6 +83,7 @@ class HttpRequestHandler {
 		try {
 			// Validate request body
 			if ( null === $context->body ) {
+				$this->emit_transport_error( $context, 'parse_error', 400 );
 				return new \WP_REST_Response(
 					McpErrorFactory::parse_error( 0, 'Invalid JSON in request body' ),
 					400
@@ -131,6 +133,7 @@ class HttpRequestHandler {
 		// Enforce request body size limit to prevent memory/CPU DoS.
 		$raw_body = $context->request->get_body();
 		if ( strlen( $raw_body ) > self::MAX_REQUEST_BODY_BYTES ) {
+			$this->emit_transport_error( $context, 'body_too_large', 413, array( 'body_size' => strlen( $raw_body ) ) );
 			return new \WP_REST_Response(
 				McpErrorFactory::invalid_request( 0, 'Request body exceeds maximum allowed size' ),
 				413
@@ -142,6 +145,7 @@ class HttpRequestHandler {
 
 		// Enforce batch size limit to prevent CPU/memory DoS via oversized batches.
 		if ( count( $messages ) > self::MAX_BATCH_SIZE ) {
+			$this->emit_transport_error( $context, 'batch_too_large', 400, array( 'batch_size' => count( $messages ) ) );
 			return new \WP_REST_Response(
 				McpErrorFactory::invalid_request( 0, 'Batch request exceeds maximum allowed size of ' . self::MAX_BATCH_SIZE . ' messages' ),
 				400
@@ -230,6 +234,7 @@ class HttpRequestHandler {
 
 		// Handle session headers if provided by router (session creation during initialize).
 		if ( isset( $result['_session_id'] ) ) {
+			$this->emit_session_event( $context, 'boundary.session.init', (string) $result['_session_id'], $params );
 			$this->add_session_header_to_response( $result['_session_id'] );
 			unset( $result['_session_id'] );
 		}
@@ -284,6 +289,8 @@ class HttpRequestHandler {
 			return new \WP_REST_Response( $result, $http_status );
 		}
 
+		$this->emit_session_event( $context, 'boundary.session.terminated', $context->session_id ?? '' );
+
 		return new \WP_REST_Response( null, 200 );
 	}
 
@@ -294,6 +301,90 @@ class HttpRequestHandler {
 	 */
 	private function get_transport_name(): string {
 		return 'HTTP';
+	}
+
+	/**
+	 * Emit a `boundary.transport.error` event through the observability emitter.
+	 *
+	 * Tags are metadata-only — no body, no params. Sanitization happens
+	 * inside BoundaryEventEmitter::emit().
+	 *
+	 * @param HttpRequestContext $context     The HTTP request context.
+	 * @param string             $error_code  Why the error occurred.
+	 * @param int                $status_code HTTP status code returned.
+	 * @param array              $extra       Additional metadata-only tags.
+	 */
+	private function emit_transport_error( HttpRequestContext $context, string $error_code, int $status_code, array $extra = array() ): void {
+		$server  = $this->transport_context->mcp_server;
+		$handler = $server && method_exists( $server, 'get_observability_handler' )
+			? $server->get_observability_handler()
+			: null;
+
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) && is_string( $_SERVER['REMOTE_ADDR'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
+			: '';
+
+		$user_agent = isset( $_SERVER['HTTP_USER_AGENT'] ) && is_string( $_SERVER['HTTP_USER_AGENT'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) )
+			: '';
+
+		$tags = array_merge(
+			array(
+				'severity'    => 'warn',
+				'transport'   => $this->get_transport_name(),
+				'ip'          => $ip,
+				'user_agent'  => $user_agent,
+				'session_id'  => $context->session_id ?? '',
+				'user_id'     => function_exists( 'get_current_user_id' ) ? get_current_user_id() : 0,
+				'error_code'  => $error_code,
+				'status_code' => $status_code,
+			),
+			$extra
+		);
+
+		BoundaryEventEmitter::emit( $handler, 'boundary.transport.error', $tags );
+	}
+
+	/**
+	 * Emit a session lifecycle event.
+	 *
+	 * @param HttpRequestContext $context     The HTTP request context.
+	 * @param string             $event       'boundary.session.init' or 'boundary.session.terminated'.
+	 * @param string             $session_id  Session id (empty allowed).
+	 * @param array              $init_params Optional initialize params (only used on init for client_name).
+	 */
+	private function emit_session_event( HttpRequestContext $context, string $event, string $session_id, array $init_params = array() ): void {
+		$server  = $this->transport_context->mcp_server;
+		$handler = $server && method_exists( $server, 'get_observability_handler' )
+			? $server->get_observability_handler()
+			: null;
+
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) && is_string( $_SERVER['REMOTE_ADDR'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
+			: '';
+		$user_agent = isset( $_SERVER['HTTP_USER_AGENT'] ) && is_string( $_SERVER['HTTP_USER_AGENT'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) )
+			: '';
+
+		$client_name = isset( $init_params['clientInfo']['name'] ) && is_string( $init_params['clientInfo']['name'] )
+			? $init_params['clientInfo']['name']
+			: '';
+		$protocol_version = isset( $init_params['protocolVersion'] ) && is_string( $init_params['protocolVersion'] )
+			? $init_params['protocolVersion']
+			: '';
+
+		$tags = array(
+			'severity'        => 'info',
+			'transport'       => $this->get_transport_name(),
+			'ip'              => $ip,
+			'user_agent'      => $user_agent,
+			'session_id'      => $session_id,
+			'user_id'         => function_exists( 'get_current_user_id' ) ? get_current_user_id() : 0,
+			'client_name'     => $client_name,
+			'protocolVersion' => $protocol_version,
+		);
+
+		BoundaryEventEmitter::emit( $handler, $event, $tags );
 	}
 
 	/**
