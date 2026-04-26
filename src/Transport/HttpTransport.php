@@ -33,6 +33,32 @@ class HttpTransport implements McpRestTransportInterface {
 	use McpTransportHelperTrait;
 
 	/**
+	 * Controlled enum of reasons the auth gate denied a request. The boundary
+	 * log only ever sees one of these — detailed exception text stays in
+	 * `error_log()` and never reaches third-party listeners.
+	 */
+	public const AUTH_DENY_INVALID_CREDENTIALS = 'invalid_credentials';
+	public const AUTH_DENY_MISSING_ORIGIN      = 'missing_origin';
+	public const AUTH_DENY_EXPIRED_TOKEN       = 'expired_token';
+	public const AUTH_DENY_PERMISSION_DENIED   = 'permission_denied';
+	public const AUTH_DENY_DISALLOWED_ORIGIN   = 'disallowed_origin';
+	public const AUTH_DENY_MALFORMED_REQUEST   = 'malformed_request';
+	public const AUTH_DENY_UNKNOWN             = 'unknown';
+
+	/**
+	 * @var string[] Whitelist used to coerce free-form input to the enum.
+	 */
+	private const AUTH_DENY_REASONS = array(
+		self::AUTH_DENY_INVALID_CREDENTIALS,
+		self::AUTH_DENY_MISSING_ORIGIN,
+		self::AUTH_DENY_EXPIRED_TOKEN,
+		self::AUTH_DENY_PERMISSION_DENIED,
+		self::AUTH_DENY_DISALLOWED_ORIGIN,
+		self::AUTH_DENY_MALFORMED_REQUEST,
+		self::AUTH_DENY_UNKNOWN,
+	);
+
+	/**
 	 * The HTTP request handler.
 	 *
 	 * @var \WickedEvolutions\McpAdapter\Transport\Infrastructure\HttpRequestHandler
@@ -48,17 +74,62 @@ class HttpTransport implements McpRestTransportInterface {
 		$this->request_handler = new HttpRequestHandler( $transport_context );
 		add_action( 'rest_api_init', array( $this, 'register_routes' ), 16 );
 
-		// Disable WordPress core's default CORS handling for the entire REST API.
-		// Core's `rest_send_cors_headers()` echoes any Origin without an allowlist
-		// check and uses a header allowlist that excludes `Mcp-Session-Id` and
-		// `Mcp-Session-Token`. We replace it with our own per-response emission
-		// (see emit_cors_headers()) gated by OriginValidator.
-		add_filter( 'rest_send_cors_headers', '__return_false' );
+		// Suppress WordPress core's default CORS handling ONLY for requests
+		// targeting our MCP route namespace. Core's `rest_send_cors_headers()`
+		// (registered on `rest_pre_serve_request` at priority 10) echoes any
+		// Origin without an allowlist check and uses a header allowlist that
+		// excludes `Mcp-Session-Id` / `Mcp-Session-Token`. We replace it on
+		// MCP routes only — every other REST endpoint on the site keeps core's
+		// behaviour untouched. Hooked at priority 9 so we run before core's 10.
+		add_filter( 'rest_pre_serve_request', array( $this, 'maybe_disable_core_cors_for_mcp' ), 9, 4 );
 
 		// Emit our own CORS headers on every dispatched REST response. Filtering
 		// at this layer (rather than per-route) ensures headers are present on
 		// error responses too, including the 401/403 returned by check_permission.
 		add_filter( 'rest_post_dispatch', array( $this, 'emit_cors_headers' ), 10, 3 );
+	}
+
+	/**
+	 * Conditionally disable WordPress core's CORS callback for MCP routes.
+	 *
+	 * Runs at `rest_pre_serve_request` priority 9 (before core's 10). When
+	 * the dispatched request targets this transport's namespace, we remove
+	 * `rest_send_cors_headers` from the same hook for the remainder of this
+	 * request — core won't run, our `emit_cors_headers` handles CORS instead.
+	 * Non-MCP REST routes are not affected.
+	 *
+	 * @param mixed             $served  Whether the request has already been served.
+	 * @param mixed             $result  Response result (unused).
+	 * @param \WP_REST_Request|null $request The dispatched REST request.
+	 * @param \WP_REST_Server|null  $server  The REST server (unused).
+	 *
+	 * @return mixed The unchanged $served value.
+	 */
+	public function maybe_disable_core_cors_for_mcp( $served, $result = null, $request = null, $server = null ) {
+		if ( ! $request instanceof \WP_REST_Request ) {
+			return $served;
+		}
+		if ( ! $this->is_mcp_route( $request ) ) {
+			return $served;
+		}
+		// Only act if core's callback is still attached.
+		if ( function_exists( 'has_filter' ) && false !== has_filter( 'rest_pre_serve_request', 'rest_send_cors_headers' ) ) {
+			remove_filter( 'rest_pre_serve_request', 'rest_send_cors_headers' );
+		}
+		return $served;
+	}
+
+	/**
+	 * Whether a REST request targets this transport's route namespace.
+	 *
+	 * @param \WP_REST_Request<array<string, mixed>> $request
+	 * @return bool
+	 */
+	private function is_mcp_route( \WP_REST_Request $request ): bool {
+		$mcp_server = $this->request_handler->transport_context->mcp_server;
+		$ns         = $mcp_server->get_server_route_namespace();
+		$route      = (string) $request->get_route();
+		return strpos( $route, '/' . $ns . '/' ) === 0;
 	}
 
 	/**
@@ -128,28 +199,31 @@ class HttpTransport implements McpRestTransportInterface {
 				$result = call_user_func( $transport_context->transport_permission_callback, $context->request );
 
 				// WP_Error return: log internally, deny access (fail closed).
+				// Detail (the WP_Error message) stays in error_handler->log only;
+				// the boundary event sees the controlled enum.
 				if ( is_wp_error( $result ) ) {
 					$this->request_handler->transport_context->error_handler->log(
 						'Permission callback returned WP_Error: ' . $result->get_error_message(),
 						array( 'HttpTransport::check_permission' )
 					);
-					$this->emit_auth_denied( $context, 'permission_callback_error', $result->get_error_message() );
+					$this->emit_auth_denied( $context, self::AUTH_DENY_PERMISSION_DENIED );
 					return false;
 				}
 
 				// Return the boolean result directly.
 				if ( ! (bool) $result ) {
-					$this->emit_auth_denied( $context, 'permission_callback_denied' );
+					$this->emit_auth_denied( $context, self::AUTH_DENY_PERMISSION_DENIED );
 				}
 
 				return (bool) $result;
 			} catch ( \Throwable $e ) {
 				// Exception: log internally, deny access (fail closed).
+				// Exception text stays in error_handler->log only.
 				$this->request_handler->transport_context->error_handler->log(
 					'Error in transport permission callback: ' . $e->getMessage(),
 					array( 'HttpTransport::check_permission' )
 				);
-				$this->emit_auth_denied( $context, 'permission_callback_exception', $e->getMessage() );
+				$this->emit_auth_denied( $context, self::AUTH_DENY_UNKNOWN );
 				return false;
 			}
 		}
@@ -164,11 +238,13 @@ class HttpTransport implements McpRestTransportInterface {
 
 		if ( ! $user_has_capability ) {
 			$user_id = get_current_user_id();
+			// Capability name stays in error_handler->log only; the boundary
+			// event sees the controlled enum.
 			$this->request_handler->transport_context->error_handler->log(
 				sprintf( 'Permission denied for MCP API access. User ID %d does not have capability "%s"', $user_id, $user_capability ),
 				array( 'HttpTransport::check_permission' )
 			);
-			$this->emit_auth_denied( $context, 'missing_capability', $user_capability );
+			$this->emit_auth_denied( $context, self::AUTH_DENY_PERMISSION_DENIED );
 		}
 
 		return $user_has_capability;
@@ -177,21 +253,25 @@ class HttpTransport implements McpRestTransportInterface {
 	/**
 	 * Emit a `boundary.auth.denied` event through the observability emitter.
 	 *
-	 * Tags are metadata-only (request id, session id, IP, user agent, error
-	 * code) — no headers, body, or capability values that would carry
-	 * identifying or sensitive data.
+	 * Tags are metadata-only and pass through a strict enum — no free-form
+	 * reason text, no raw IPs, no exception strings reach third-party
+	 * listeners. Detailed exception/log text stays in `error_log()` only,
+	 * recorded by the caller through the regular error handler.
 	 *
-	 * @param HttpRequestContext $context    The HTTP request context.
-	 * @param string             $error_code Why the denial happened.
-	 * @param string             $reason     Optional short human reason.
+	 * The IP is truncated to /24 (IPv4) or /48 (IPv6) BEFORE tag construction
+	 * so the raw address never enters the emitter pipeline.
+	 *
+	 * @param HttpRequestContext $context     The HTTP request context.
+	 * @param string             $reason_enum One of {@see AUTH_DENY_REASONS}; anything
+	 *                                        else is coerced to AUTH_DENY_UNKNOWN.
 	 */
-	private function emit_auth_denied( HttpRequestContext $context, string $error_code, string $reason = '' ): void {
+	private function emit_auth_denied( HttpRequestContext $context, string $reason_enum ): void {
 		$server_obj = $this->request_handler->transport_context->mcp_server;
 		$handler    = $server_obj && method_exists( $server_obj, 'get_observability_handler' )
 			? $server_obj->get_observability_handler()
 			: null;
 
-		$ip = isset( $_SERVER['REMOTE_ADDR'] ) && is_string( $_SERVER['REMOTE_ADDR'] )
+		$raw_ip = isset( $_SERVER['REMOTE_ADDR'] ) && is_string( $_SERVER['REMOTE_ADDR'] )
 			? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
 			: '';
 
@@ -199,19 +279,55 @@ class HttpTransport implements McpRestTransportInterface {
 			? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) )
 			: '';
 
+		$reason = in_array( $reason_enum, self::AUTH_DENY_REASONS, true )
+			? $reason_enum
+			: self::AUTH_DENY_UNKNOWN;
+
 		$tags = array(
 			'severity'    => 'warn',
 			'transport'   => 'HTTP',
-			'ip'          => $ip,
+			'ip'          => self::truncate_ip_for_log( $raw_ip ),
 			'user_agent'  => $user_agent,
 			'session_id'  => $context->session_id ?? '',
-			'user_id'     => get_current_user_id(),
-			'error_code'  => $error_code,
+			'user_id'     => function_exists( 'get_current_user_id' ) ? get_current_user_id() : 0,
+			'error_code'  => $reason,
 			'status_code' => 401,
 			'reason'      => $reason,
 		);
 
 		BoundaryEventEmitter::emit( $handler, 'boundary.auth.denied', $tags );
+	}
+
+	/**
+	 * Truncate a client IP for boundary-log tagging (PII policy).
+	 *
+	 * IPv4 → /24, IPv6 → /48. Mirrors DB-4's RateLimiter pattern; inlined
+	 * here so DB-5 doesn't take a hard dependency on the rate-limiter PR.
+	 * Public so the same algorithm is exercised by unit tests directly.
+	 *
+	 * @param string $ip
+	 * @return string Truncated IP string, or '' if the input is empty/invalid.
+	 */
+	public static function truncate_ip_for_log( string $ip ): string {
+		if ( '' === $ip ) {
+			return '';
+		}
+		if ( false === @inet_pton( $ip ) ) {
+			return '';
+		}
+		if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
+			$parts = explode( '.', $ip );
+			if ( 4 !== count( $parts ) ) {
+				return '';
+			}
+			return $parts[0] . '.' . $parts[1] . '.' . $parts[2] . '.0/24';
+		}
+		$bin = @inet_pton( $ip );
+		if ( false === $bin || strlen( $bin ) !== 16 ) {
+			return '';
+		}
+		$groups = str_split( bin2hex( $bin ), 4 );
+		return $groups[0] . ':' . $groups[1] . ':' . $groups[2] . '::/48';
 	}
 
 	/**
@@ -283,10 +399,7 @@ class HttpTransport implements McpRestTransportInterface {
 		}
 
 		// Only act on requests for this transport's route namespace.
-		$mcp_server = $this->request_handler->transport_context->mcp_server;
-		$ns         = $mcp_server->get_server_route_namespace();
-		$route      = $request->get_route();
-		if ( strpos( $route, '/' . $ns . '/' ) !== 0 ) {
+		if ( ! $this->is_mcp_route( $request ) ) {
 			return $response;
 		}
 
