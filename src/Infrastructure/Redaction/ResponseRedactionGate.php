@@ -80,6 +80,21 @@ final class ResponseRedactionGate {
 			);
 		}
 
+		// `tools/call` responses ship two parallel channels:
+		//   - structuredContent: the typed result tree (just redacted in place)
+		//   - content[i].text:   a JSON-encoded snapshot of the SAME tree, captured
+		//                        before redaction runs, so it still holds the raw
+		//                        values. The keyword-based redactor only matches
+		//                        field names — a serialized string slips through
+		//                        unchanged. Regenerate the text channel from the
+		//                        redacted tree to close the leak.
+		//
+		// Image responses (content[0].type === 'image') carry base64 binary in
+		// `data`, no `text` field, no `structuredContent` — left untouched.
+		// Text-only responses without `structuredContent` get a best-effort
+		// JSON-decode/redact/re-encode so single-channel callers don't leak.
+		$redacted = self::reconcile_tool_channels( $redacted, $redactor );
+
 		if ( null !== $session_id ) {
 			$redacted['_session_id'] = $session_id;
 		}
@@ -96,6 +111,95 @@ final class ResponseRedactionGate {
 
 		if ( $total > 0 ) {
 			self::emit_redaction_event( $observability, $method, $ability_name, $counts );
+		}
+
+		return $redacted;
+	}
+
+	/**
+	 * Reconcile the dual response channels after redaction. See the call site
+	 * for the leak this closes.
+	 *
+	 * Strategy:
+	 *   - If `content[i].text` and a top-level `structuredContent` are both
+	 *     present, the text channel is a stale JSON snapshot — re-encode the
+	 *     (now redacted) `structuredContent` and stamp it into ALL text parts.
+	 *     Stamping every text part rather than just `[0]` is defensive: the
+	 *     adapter writes only `content[0].text` today, but a future
+	 *     (or third-party) handler might emit several text parts derived
+	 *     from the same structured payload.
+	 *   - If `content[i].text` is present without `structuredContent`
+	 *     (single-channel text response), best-effort redact the text in
+	 *     place: JSON-decode, re-redact, re-encode. A non-JSON string is
+	 *     left alone — keyword redaction has no field-name surface in a
+	 *     free-form string.
+	 *   - Image parts (`type === 'image'`) carry base64 binary in `data`,
+	 *     not `text`; they are skipped.
+	 *   - Anything that doesn't look like a tools/call response (no
+	 *     `content` array, or no parts with a `text` key) is returned
+	 *     unchanged. `initialize` and other non-tools/call results pass
+	 *     through unaffected.
+	 *
+	 * @param array            $redacted Result with structuredContent already redacted.
+	 * @param ResponseRedactor $redactor Reusable redactor for the per-text-part fallback.
+	 * @return array
+	 */
+	private static function reconcile_tool_channels( array $redacted, ResponseRedactor $redactor ): array {
+		if ( ! isset( $redacted['content'] ) || ! is_array( $redacted['content'] ) ) {
+			return $redacted;
+		}
+
+		$has_structured     = array_key_exists( 'structuredContent', $redacted );
+		$structured_payload = $has_structured ? $redacted['structuredContent'] : null;
+
+		foreach ( $redacted['content'] as $i => $part ) {
+			if ( ! is_array( $part ) ) {
+				continue;
+			}
+			if ( isset( $part['type'] ) && 'text' !== $part['type'] ) {
+				// Image / future binary parts — skip.
+				continue;
+			}
+			if ( ! array_key_exists( 'text', $part ) ) {
+				continue;
+			}
+
+			if ( $has_structured ) {
+				// Canonical fix path: regenerate from the redacted typed payload.
+				$encoded = function_exists( 'wp_json_encode' )
+					? wp_json_encode( $structured_payload )
+					: json_encode( $structured_payload );
+				if ( false !== $encoded && null !== $encoded ) {
+					$redacted['content'][ $i ]['text'] = $encoded;
+				}
+				continue;
+			}
+
+			// Single-channel text response: try JSON → redact → re-encode.
+			$text = $part['text'];
+			if ( ! is_string( $text ) || '' === $text ) {
+				continue;
+			}
+			$decoded = json_decode( $text, true );
+			if ( ! is_array( $decoded ) ) {
+				// Plain text — keyword-based redaction has nothing to match.
+				continue;
+			}
+			try {
+				$redacted_decoded = $redactor->redact( $decoded );
+			} catch ( RedactionLimitExceeded $e ) {
+				// Best-effort path: a limit hit here shouldn't tear down the
+				// whole response, but the original (potentially leaky) text
+				// MUST NOT pass through. Replace with a safe marker.
+				$redacted['content'][ $i ]['text'] = '[redacted:limit_exceeded]';
+				continue;
+			}
+			$encoded = function_exists( 'wp_json_encode' )
+				? wp_json_encode( $redacted_decoded )
+				: json_encode( $redacted_decoded );
+			if ( false !== $encoded && null !== $encoded ) {
+				$redacted['content'][ $i ]['text'] = $encoded;
+			}
 		}
 
 		return $redacted;
