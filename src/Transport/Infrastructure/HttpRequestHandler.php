@@ -239,9 +239,26 @@ class HttpRequestHandler {
 			$context
 		);
 
-		// Redact at the response boundary BEFORE session-id extraction or formatting.
-		// The gate preserves _session_id/_session_token markers so the existing flow below
-		// continues to work unchanged.
+		// Sequencing at the post-route boundary (Launch Gate integration):
+		//   1. Rate-limit short-circuit already happened inside route_request().
+		//      If $result is a RATE_LIMITED envelope, surface Retry-After here
+		//      so the client sees the hint as an HTTP header.
+		//   2. Redaction gate transforms the body. The gate preserves
+		//      _session_id / _session_token markers so the session flow below
+		//      keeps working unchanged.
+		//   3. CORS headers (DB-5) are added later, on rest_post_dispatch —
+		//      they don't run inside this method and so don't appear here.
+
+		// (1) Rate-limiter Retry-After hint.
+		if ( isset( $result['error']['code'], $result['error']['data']['retry_after_ms'] )
+			&& McpErrorFactory::RATE_LIMITED === $result['error']['code']
+			&& is_numeric( $result['error']['data']['retry_after_ms'] )
+		) {
+			$retry_seconds = (int) ceil( ( (int) $result['error']['data']['retry_after_ms'] ) / 1000 );
+			$this->add_response_header( 'Retry-After', (string) max( 1, $retry_seconds ) );
+		}
+
+		// (2) Response redaction gate.
 		$server                = $this->transport_context->mcp_server;
 		$observability_handler = $server && method_exists( $server, 'get_observability_handler' )
 			? $server->get_observability_handler()
