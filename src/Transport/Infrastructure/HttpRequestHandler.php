@@ -15,6 +15,7 @@ namespace WickedEvolutions\McpAdapter\Transport\Infrastructure;
 
 use WickedEvolutions\McpAdapter\Infrastructure\ErrorHandling\McpErrorFactory;
 use WickedEvolutions\McpAdapter\Infrastructure\Observability\BoundaryEventEmitter;
+use WickedEvolutions\McpAdapter\Infrastructure\Redaction\ResponseRedactionGate;
 
 /**
  * Handles HTTP request routing and processing for MCP transports.
@@ -231,6 +232,15 @@ class HttpRequestHandler {
 			$this->get_transport_name(),
 			$context
 		);
+
+		// Redact at the response boundary BEFORE session-id extraction or formatting.
+		// The gate preserves _session_id/_session_token markers so the existing flow below
+		// continues to work unchanged.
+		$server                = $this->transport_context->mcp_server;
+		$observability_handler = $server && method_exists( $server, 'get_observability_handler' )
+			? $server->get_observability_handler()
+			: null;
+		$result = ResponseRedactionGate::apply( $result, $method, $params, $request_id, $observability_handler );
 
 		// Handle session headers if provided by router (session creation during initialize).
 		if ( isset( $result['_session_id'] ) ) {
