@@ -1,28 +1,55 @@
 # Changelog
 
-## [Unreleased] — DB-3 (held for public-alpha hardening Launch Gate)
+## [1.4.1] - 2026-04-26
 
-### Added — Safety Settings UI + AI-callable settings abilities
-- New admin page **Settings → MCP Safety** with four sections:
-  1. Master toggle (off requires checkbox confirmation; Bucket 1 secrets always filtered).
-  2. Redaction keyword list — Bucket 1 read-only; Bucket 2 with per-default warning; Bucket 3 with per-default no warning; custom-add input (Bucket 2 or 3 only); restore defaults.
-  3. Per-ability exemptions — two columns (Bucket 3 left, Bucket 2 right with confirm-on-add warning).
-  4. Trusted proxy — Cloudflare preset / custom CIDR allowlist (consumed by the rate limiter in DB-4).
-- Seven AI-callable abilities, all gated by `manage_options`:
-  - `settings/get-redaction-list` — read state, no friction.
-  - `settings/add-redaction-keyword` — strengthen, no friction.
-  - `settings/remove-custom-keyword` — reverse own additions, no friction.
-  - `settings/restore-redaction-defaults` — restore baseline, no friction.
-  - `settings/remove-default-bucket3-keyword` — weaken Bucket 3 default, **in-chat 1/2 confirmation required**.
-  - `settings/exempt-ability-from-bucket3` — per-ability Bucket 3 unlock, **in-chat 1/2 confirmation required**.
-  - `settings/unexempt-ability-from-bucket3` — re-lock exemption, no friction.
-- One-time confirmation tokens stored as WP transients with 60s TTL, bound to (session, ability, params); single-use; replay-safe.
-- All settings writes emit `boundary.master_toggle.changed`, `boundary.redaction_keywords.changed`, `boundary.ability_exemption.changed`, `boundary.confirmation.failed` events through the existing `BoundaryEventEmitter`.
-- New option keys: `abilities_mcp_redaction_master_enabled`, `abilities_mcp_redaction_keywords` (Bucket 3 customs), `abilities_mcp_bucket2_keywords` (Bucket 2 customs — DB-2 to read after rebase), `abilities_mcp_bucket3_exemptions`, `abilities_mcp_bucket2_exemptions`, `abilities_mcp_redaction_keywords_removed_defaults`, `abilities_mcp_bucket2_keywords_removed_defaults`, `abilities_mcp_trusted_proxy_enabled`, `abilities_mcp_trusted_proxy_mode`, `abilities_mcp_trusted_proxy_allowlist`.
+### Fixed
+- **Text-channel PII leak in `tools/call` responses** (`f0da80f`). MCP responses include both `structuredContent` (object) and `content[0].text` (JSON-serialized string of the same data). The recursive redactor matched field names but never traversed into JSON-encoded strings, so emails redacted in `structuredContent` leaked raw in `content[0].text`. Bridge clients (Claude Desktop, Cursor) read the text channel — bug was visible to every operator using the bridge. Fixed by `ResponseRedactionGate::reconcile_tool_channels()`, which regenerates `content[i].text` from the redacted `structuredContent` after the recursive pass. Single-channel text responses also get a JSON decode → redact → re-encode pass; image responses (`content[i].type === 'image'`) untouched. Caught in post-release verification by external review.
 
-### Held
-- Bucket 2 default-removal, Bucket 2 ability-exemption, master-toggle-off — Admin UI only by design. No ability paths exist for these.
-- Released together with DB-1, DB-2, DB-4, DB-5, DB-6 at the Launch Gate.
+## [1.4.0] - 2026-04-26
+
+Public alpha hardening release. Five integrated dev briefs landing as one canonical merge from PR #26. Companion releases: [abilities-for-ai v1.9.0](https://github.com/Wicked-Evolutions/abilities-for-ai/releases/tag/v1.9.0), [abilities-mcp v1.4.0](https://github.com/Wicked-Evolutions/abilities-mcp/releases/tag/v1.4.0).
+
+### Added — Response redaction filter (DB-2)
+- Three-bucket redaction at the `/mcp` response boundary. Bucket 1 (secrets — passwords, API keys, tokens, salts, password hash patterns, known API-key value prefixes, Luhn-checked card numbers) always filtered, cannot be disabled. Bucket 2 (payment / regulated identifiers — `card_number`, `cvv`, `ssn`, `tax_id`, etc.) default-on, configurable via Admin UI only. Bucket 3 (contact PII / access labels — `email`, `phone`, `address`, `user_login`, `ip`, `public_key`, etc.) default-on, configurable via Admin UI or AI.
+- Type-aware redaction markers preserve response schema. Scalar string fields → `"[redacted:bucket_N]"`; object fields → `{"redacted": true, "reason": "bucket_N"}`; array fields → single-element array preserving shape. Schema-validating clients see the type they expect.
+- Recursive traversal with depth limit 64 and node limit 100,000 to prevent DoS via crafted responses.
+- Per-ability exemptions for Bucket 3 unlock contact PII visibility on specific abilities (e.g. CRM workflows). Bucket 2 exemptions exist but are Admin-UI only — never weakenable through chat.
+- Meta-tool unwrap: when a tool call goes through `mcp-adapter-execute-ability`, the redactor reads the inner `arguments['ability_name']` for exemption lookup, with a dash-form-to-slash-form translator that resolves MCP wire names (`fluent-cart-list-customers`) back to canonical ability names (`fluent-cart/list-customers`) via `wp_get_abilities()`.
+- New filter hook `mcp_adapter_redaction_keywords` for runtime keyword list overrides.
+
+### Added — Safety Settings UI + AI-callable settings abilities (DB-3)
+- New admin page **Settings → MCP Safety** with master toggle (off requires checkbox confirmation), bucket keyword list editor (Bucket 1 read-only; Bucket 2 with per-default warning; Bucket 3 with per-default no warning; restore defaults), per-ability exemptions (two columns — Bucket 3 left, Bucket 2 right with confirm-on-add warning), trusted-proxy configuration (Cloudflare preset / custom CIDR allowlist).
+- Seven AI-callable abilities, all gated by `manage_options`: `settings/get-redaction-list`, `settings/add-redaction-keyword`, `settings/remove-custom-keyword`, `settings/restore-redaction-defaults`, `settings/remove-default-bucket3-keyword` (in-chat 1/2 confirmation required), `settings/exempt-ability-from-bucket3` (in-chat 1/2 confirmation required), `settings/unexempt-ability-from-bucket3`.
+- One-time confirmation tokens stored as WP transients with 60s TTL, bound to `(session, ability, params)`. Single-use; replay-safe.
+- Bucket 2 keywords reject upfront when passed to `settings/remove-default-bucket3-keyword` — operators get a structured error pointing to WP Admin instead of a misleading confirmation prompt.
+- Settings writes emit `boundary.master_toggle.changed`, `boundary.redaction_keywords.changed`, `boundary.ability_exemption.changed`, `boundary.confirmation.failed` events through the existing `BoundaryEventEmitter`.
+- New option keys: `abilities_mcp_redaction_master_enabled`, `abilities_mcp_redaction_keywords`, `abilities_mcp_bucket2_keywords`, `abilities_mcp_bucket3_exemptions`, `abilities_mcp_bucket2_exemptions`, `abilities_mcp_redaction_keywords_removed_defaults`, `abilities_mcp_bucket2_keywords_removed_defaults`, `abilities_mcp_trusted_proxy_enabled`, `abilities_mcp_trusted_proxy_mode`, `abilities_mcp_trusted_proxy_allowlist`.
+
+### Added — Rate limiter at /mcp boundary (DB-4)
+- Per-IP + per-user sliding-window rate limiting before handler dispatch. Default 60 requests/minute per dimension; configurable.
+- Separate 30/min/IP window for `initialize` handshake — prevents authenticated clients from looping new sessions while leaving the post-auth limiter scoped to actual tool work.
+- Trusted-proxy IP detection rules: `REMOTE_ADDR` is the only trusted source by default; `X-Forwarded-For`, `CF-Connecting-IP`, `X-Real-IP`, `True-Client-IP` honored only when the operator enables a trusted-proxy preset. Cloudflare preset auto-fetches Cloudflare's published IP ranges and trusts the header only when the request originates from one. Custom-allowlist preset accepts an operator-supplied CIDR list. Without these rules, the limiter would either be useless behind Cloudflare or trivially spoofable.
+- 429 responses include `Retry-After` header. Rate-limit hits emit `boundary.rate_limit_hit` events with truncated IPs and dimension/method tags.
+
+### Added — Origin allowlist + CORS + minimal SSE stub (DB-5)
+- Origin header validation as defense-in-depth against DNS rebinding. Same-host and configurable per-origin allowlist.
+- CORS scoped to MCP routes only — `rest_pre_serve_request` hook conditionally suppresses WordPress core's `rest_send_cors_headers()` for MCP namespace requests, leaving every other REST route's CORS behavior untouched.
+- Auth-denied event tags carry truncated IPs (/24 for IPv4, /48 for IPv6) and enum reason codes (no free-form exception text leaks through hooks).
+- Minimal Server-Sent Events stub on `GET /mcp` — `text/event-stream` with bounded heartbeat. Replaces the previous "not yet implemented" 405 stub. Future server-initiated events can extend this surface.
+
+### Added — Boundary event sanitization
+- `BoundaryEventEmitter` hashes incoming `api_key` to `api_key_hash` before firing the typed handler and the `mcp_adapter_boundary_event` action hook. Raw API keys never reach listeners. `public_key` moved out of always-on Bucket 1 and into configurable Bucket 3 (public keys are intentionally shareable; SSH host keys, JWT verification keys, OAuth public keys all qualify).
+
+### Changed
+- Plugin version bumped to 1.4.0.
+
+## [1.3.0] - 2026-04-26
+
+### Added — Boundary event prerequisite
+- `BoundaryEventEmitter` and `mcp_adapter_register_observability` action hook (`a43167a`). Adapter-side groundwork for the Launch Gate sprint — emits sanitized boundary events through both a typed `McpObservabilityHandlerInterface` and a third-party-friendly action hook. Initial sanitization pass; the full hashing of `api_key` lands in v1.4.0's security pass.
+
+### Fixed
+- CI infrastructure: `composer.lock` pinned to `doctrine/instantiator <2.1.0` (`e06a658`) to restore the PHP 8.0–8.3 test matrix. The transitive dependency had been auto-updated to a 2.1.0 release that requires PHP 8.4 — incompatible with our supported floor. Affects CI green only; runtime behavior unchanged.
 
 ## [1.2.0] - 2026-03-20
 
