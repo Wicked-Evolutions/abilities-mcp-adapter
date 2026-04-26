@@ -488,4 +488,293 @@ class ResponseRedactionGateTest extends TestCase {
 		$this->assertSame( '[redacted:bucket_1]', $out['data']['session_token'] );
 		$this->assertSame( '[redacted:bucket_1]', $out['data']['api_key'] );
 	}
+
+	// ── Text-channel leak fix (Launch Gate v0.1.1) ──────────────────────────
+	//
+	// `tools/call` ships responses on two parallel channels: the typed
+	// `structuredContent` tree, and a JSON-encoded snapshot at
+	// `content[i].text`. The gate's recursive redactor mutates the typed
+	// tree but keyword-based redaction can't match anything in a serialised
+	// string, so the text channel previously leaked raw values even when
+	// the typed channel was correctly redacted.
+
+	/**
+	 * Build the response shape ToolsHandler::call_tool() emits for a non-image
+	 * ability — content[0].text is wp_json_encode($result) and structuredContent
+	 * is the same $result, captured BEFORE the gate runs.
+	 *
+	 * @param array $result_payload What the ability returned.
+	 * @return array
+	 */
+	private function tools_call_response( array $result_payload ): array {
+		return array(
+			'content'           => array(
+				array(
+					'type' => 'text',
+					'text' => json_encode( $result_payload ),
+				),
+			),
+			'structuredContent' => $result_payload,
+		);
+	}
+
+	public function test_text_channel_dual_channel_text_regenerates_from_redacted_structured(): void {
+		$payload = array(
+			'users' => array(
+				array(
+					'id'            => 5,
+					'email'         => 'jacob@willow.se',
+					'session_token' => 'st_live_secret',
+				),
+			),
+		);
+
+		$out = ResponseRedactionGate::apply(
+			$this->tools_call_response( $payload ),
+			'tools/call',
+			array( 'name' => 'users-list', 'arguments' => array() ),
+			1
+		);
+
+		// structuredContent redacted as before.
+		$this->assertSame( '[redacted:bucket_3]', $out['structuredContent']['users'][0]['email'] );
+		$this->assertSame( '[redacted:bucket_1]', $out['structuredContent']['users'][0]['session_token'] );
+
+		// content[0].text must be regenerated from the redacted structuredContent —
+		// no raw email or secret may remain in the serialised string.
+		$text = $out['content'][0]['text'];
+		$this->assertIsString( $text );
+		$this->assertStringNotContainsString( 'jacob@willow.se', $text );
+		$this->assertStringNotContainsString( 'st_live_secret', $text );
+		$this->assertStringContainsString( '[redacted:bucket_3]', $text );
+		$this->assertStringContainsString( '[redacted:bucket_1]', $text );
+
+		// And the regenerated text must round-trip back to the redacted tree.
+		$decoded = json_decode( $text, true );
+		$this->assertSame( $out['structuredContent'], $decoded );
+	}
+
+	public function test_text_channel_via_execute_ability_meta_tool_dash_form(): void {
+		// The end-to-end scenario GPT 5.5 hit: AI calls fluent-cart/list-customers
+		// through mcp-adapter-execute-ability. Inner result wraps in
+		// {success, data:...}; ToolsHandler builds dual-channel; gate must
+		// redact both channels.
+		$this->register_ability( 'fluent-cart/list-customers' );
+
+		$inner_payload = array(
+			'success' => true,
+			'data'    => array(
+				'customers' => array(
+					array( 'id' => 5, 'email' => 'jacob@willow.se' ),
+				),
+			),
+		);
+
+		$out = ResponseRedactionGate::apply(
+			$this->tools_call_response( $inner_payload ),
+			'tools/call',
+			array(
+				'name'      => 'mcp-adapter-execute-ability',
+				'arguments' => array(
+					'ability_name' => 'fluent-cart/list-customers',
+					'parameters'   => array(),
+				),
+			),
+			1
+		);
+
+		$this->assertSame( '[redacted:bucket_3]', $out['structuredContent']['data']['customers'][0]['email'] );
+		$this->assertStringNotContainsString( 'jacob@willow.se', $out['content'][0]['text'] );
+	}
+
+	public function test_text_channel_exemption_passes_email_through_both_channels(): void {
+		// When an ability is exempt, BOTH channels must show the unredacted value —
+		// otherwise the user sees inconsistent data depending on which channel
+		// the client surfaces.
+		$this->register_ability( 'fluent-cart/list-customers' );
+		Repo::add_exemption( Repo::BUCKET_CONTACT, 'fluent-cart/list-customers' );
+
+		$payload = array(
+			'data' => array( 'email' => 'jacob@willow.se', 'session_token' => 'st_live_secret' ),
+		);
+
+		$out = ResponseRedactionGate::apply(
+			$this->tools_call_response( $payload ),
+			'tools/call',
+			array(
+				'name'      => 'mcp-adapter-execute-ability',
+				'arguments' => array(
+					'ability_name' => 'fluent-cart/list-customers',
+					'parameters'   => array(),
+				),
+			),
+			1
+		);
+
+		// Bucket 3 exempt — email passes on both channels.
+		$this->assertSame( 'jacob@willow.se', $out['structuredContent']['data']['email'] );
+		$this->assertStringContainsString( 'jacob@willow.se', $out['content'][0]['text'] );
+		// Bucket 1 still redacts on both.
+		$this->assertSame( '[redacted:bucket_1]', $out['structuredContent']['data']['session_token'] );
+		$this->assertStringNotContainsString( 'st_live_secret', $out['content'][0]['text'] );
+	}
+
+	public function test_text_channel_image_response_untouched(): void {
+		// ToolsHandler emits image responses without structuredContent and
+		// without content[0].text. The reconciler must not invent a text
+		// field or otherwise mutate the image path.
+		$image_response = array(
+			'content' => array(
+				array(
+					'type'     => 'image',
+					'data'     => 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=',
+					'mimeType' => 'image/png',
+				),
+			),
+		);
+
+		$out = ResponseRedactionGate::apply(
+			$image_response,
+			'tools/call',
+			array( 'name' => 'screenshot/capture', 'arguments' => array() ),
+			1
+		);
+
+		$this->assertSame( 'image', $out['content'][0]['type'] );
+		$this->assertSame( $image_response['content'][0]['data'], $out['content'][0]['data'] );
+		$this->assertSame( 'image/png', $out['content'][0]['mimeType'] );
+		$this->assertArrayNotHasKey( 'text', $out['content'][0] );
+		$this->assertArrayNotHasKey( 'structuredContent', $out );
+	}
+
+	public function test_text_channel_text_only_response_decoded_redacted_re_encoded(): void {
+		// Single-channel text response (no structuredContent). The reconciler
+		// best-effort decodes the JSON, runs redaction, re-encodes. PII must
+		// not leak in the text.
+		$payload = array( 'email' => 'jacob@willow.se', 'name' => 'Jacob' );
+
+		$response = array(
+			'content' => array(
+				array(
+					'type' => 'text',
+					'text' => json_encode( $payload ),
+				),
+			),
+		);
+
+		$out = ResponseRedactionGate::apply(
+			$response,
+			'tools/call',
+			array( 'name' => 'users-list', 'arguments' => array() ),
+			1
+		);
+
+		$text = $out['content'][0]['text'];
+		$this->assertStringNotContainsString( 'jacob@willow.se', $text );
+		$this->assertStringContainsString( '[redacted:bucket_3]', $text );
+		// Non-PII fields preserved.
+		$this->assertStringContainsString( 'Jacob', $text );
+	}
+
+	public function test_text_channel_plain_string_text_left_alone(): void {
+		// content[0].text that is a plain non-JSON string has no field-name
+		// surface for keyword redaction. Reconciler must leave it intact —
+		// rewriting plain text would be a behaviour change the brief forbids.
+		$response = array(
+			'content' => array(
+				array(
+					'type' => 'text',
+					'text' => 'Hello world. No PII here.',
+				),
+			),
+		);
+
+		$out = ResponseRedactionGate::apply(
+			$response,
+			'tools/call',
+			array( 'name' => 'docs/get', 'arguments' => array() ),
+			1
+		);
+
+		$this->assertSame( 'Hello world. No PII here.', $out['content'][0]['text'] );
+	}
+
+	public function test_text_channel_multiple_text_parts_all_regenerate(): void {
+		// Defensive: the adapter writes only content[0] today, but the
+		// reconciler must regenerate every text part if a future handler
+		// emits several from the same structured payload.
+		$payload  = array( 'email' => 'jacob@willow.se' );
+		$response = array(
+			'content'           => array(
+				array( 'type' => 'text', 'text' => json_encode( $payload ) ),
+				array( 'type' => 'text', 'text' => json_encode( $payload ) ),
+			),
+			'structuredContent' => $payload,
+		);
+
+		$out = ResponseRedactionGate::apply(
+			$response,
+			'tools/call',
+			array( 'name' => 'users-list', 'arguments' => array() ),
+			1
+		);
+
+		$this->assertStringNotContainsString( 'jacob@willow.se', $out['content'][0]['text'] );
+		$this->assertStringNotContainsString( 'jacob@willow.se', $out['content'][1]['text'] );
+		$this->assertSame( $out['content'][0]['text'], $out['content'][1]['text'] );
+	}
+
+	public function test_text_channel_non_tools_call_unchanged(): void {
+		// `initialize` and other non-tool methods don't have content/structuredContent.
+		// The reconciler must be a no-op for them.
+		$response = array(
+			'protocolVersion' => '2025-06-18',
+			'capabilities'    => array( 'tools' => array() ),
+		);
+
+		$out = ResponseRedactionGate::apply( $response, 'initialize', array(), 1 );
+
+		$this->assertSame( $response, $out );
+	}
+
+	public function test_text_channel_response_without_content_unchanged(): void {
+		// Defensive: tools/call result without a `content` key (theoretical /
+		// future shape) passes through unchanged.
+		$response = array( 'data' => array( 'email' => 'jacob@willow.se' ) );
+
+		$out = ResponseRedactionGate::apply(
+			$response,
+			'tools/call',
+			array( 'name' => 'whatever', 'arguments' => array() ),
+			1
+		);
+
+		// structuredContent path doesn't apply, but the typed tree is still
+		// redacted by the main pass.
+		$this->assertSame( '[redacted:bucket_3]', $out['data']['email'] );
+		$this->assertArrayNotHasKey( 'content', $out );
+	}
+
+	public function test_text_channel_metadata_preserved_through_reconciliation(): void {
+		// Internal _metadata bookkeeping must survive the reconciler — it's
+		// extracted in apply() before redaction and re-attached after.
+		$payload = array( 'email' => 'jacob@willow.se' );
+		$response = array(
+			'content'           => array(
+				array( 'type' => 'text', 'text' => json_encode( $payload ) ),
+			),
+			'structuredContent' => $payload,
+			'_metadata'         => array( 'component_type' => 'tool', 'tool_name' => 'users/list' ),
+		);
+
+		$out = ResponseRedactionGate::apply(
+			$response,
+			'tools/call',
+			array( 'name' => 'users-list', 'arguments' => array() ),
+			1
+		);
+
+		$this->assertSame( array( 'component_type' => 'tool', 'tool_name' => 'users/list' ), $out['_metadata'] );
+		$this->assertStringNotContainsString( 'jacob@willow.se', $out['content'][0]['text'] );
+	}
 }
