@@ -104,15 +104,51 @@ final class ResponseRedactionGate {
 	/**
 	 * Pull the ability name out of params for tools/call. Other methods have no ability scope.
 	 *
+	 * The MCP adapter's primary AI-client path goes through the
+	 * `mcp-adapter/execute-ability` meta-tool — `params['name']` is the
+	 * meta-tool, the *real* ability whose response we're about to redact
+	 * lives at `params['arguments']['ability_name']`. Returning the
+	 * meta-tool's name there would defeat any per-ability exemption the
+	 * operator configured on the inner ability. So we unwrap.
+	 *
+	 * `mcp-adapter/batch-execute` carries multiple inner abilities at
+	 * `params['arguments']['requests'][i]['name']`. A single redaction
+	 * pass over the outer response cannot honour per-ability exemptions
+	 * for each inner result, so we return null — exemptions don't apply
+	 * inside batch-execute. This is a documented limitation, not a
+	 * regression: the safe-by-default behaviour (full redaction) is
+	 * preserved; the sharp edge is that exempt abilities lose their
+	 * exemption when invoked inside a batch.
+	 *
 	 * @param string $method
 	 * @param array  $params
 	 * @return string|null
 	 */
 	private static function extract_ability_name( string $method, array $params ): ?string {
-		if ( 'tools/call' === $method && isset( $params['name'] ) && is_string( $params['name'] ) ) {
-			return $params['name'];
+		if ( 'tools/call' !== $method ) {
+			return null;
 		}
-		return null;
+		$outer = isset( $params['name'] ) && is_string( $params['name'] ) ? $params['name'] : '';
+		if ( '' === $outer ) {
+			return null;
+		}
+
+		// `mcp-adapter/execute-ability` — the real ability is one level deeper.
+		if ( 'mcp-adapter/execute-ability' === $outer ) {
+			$args = isset( $params['arguments'] ) && is_array( $params['arguments'] ) ? $params['arguments'] : array();
+			if ( isset( $args['ability_name'] ) && is_string( $args['ability_name'] ) && '' !== $args['ability_name'] ) {
+				return $args['ability_name'];
+			}
+			return null;
+		}
+
+		// `mcp-adapter/batch-execute` — multiple inner abilities, can't pick one.
+		if ( 'mcp-adapter/batch-execute' === $outer ) {
+			return null;
+		}
+
+		// Direct tools/call against an ability registered as an MCP tool.
+		return $outer;
 	}
 
 	/**
