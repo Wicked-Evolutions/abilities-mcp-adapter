@@ -18,11 +18,18 @@ declare( strict_types=1 );
 
 namespace WickedEvolutions\McpAdapter\RateLimit;
 
+use WickedEvolutions\McpAdapter\Settings\SafetySettingsRepository;
+
 /**
  * Resolves the client IP that the limiter should bucket against.
  */
 class TrustedProxyResolver {
 
+	/**
+	 * Legacy option key — kept for any downstream reference. Live storage
+	 * is delegated to {@see SafetySettingsRepository} as of Launch Gate
+	 * runbook v0.2.0; no get_option/update_option call uses this name now.
+	 */
 	public const OPTION_NAME = 'abilities_mcp_trusted_proxy';
 
 	public const MODE_CLOUDFLARE  = 'cloudflare';
@@ -128,39 +135,51 @@ class TrustedProxyResolver {
 	/**
 	 * Get current settings, with defaults applied.
 	 *
+	 * Reads through {@see SafetySettingsRepository} (Launch Gate runbook v0.2.0).
+	 * The repository stores the three pieces (enabled / mode / allowlist) under
+	 * separate option keys; this method composes them back into the array shape
+	 * the limiter expects. Mode and allowlist representations are normalised at
+	 * this boundary so DB-4's public API (MODE_CUSTOM_LIST, allowlist:string[])
+	 * stays unchanged.
+	 *
 	 * @return array{enabled:bool,mode:string,allowlist:array<string>}
 	 */
 	public static function get_settings(): array {
-		$raw = function_exists( 'get_option' ) ? get_option( self::OPTION_NAME, array() ) : array();
-		if ( ! is_array( $raw ) ) {
-			$raw = array();
-		}
+		$enabled       = SafetySettingsRepository::is_trusted_proxy_enabled();
+		$mode_internal = SafetySettingsRepository::get_trusted_proxy_mode();
+		$allowlist_raw = SafetySettingsRepository::get_trusted_proxy_allowlist_raw();
 
 		return array(
-			'enabled'   => ! empty( $raw['enabled'] ),
-			'mode'      => isset( $raw['mode'] ) && self::MODE_CUSTOM_LIST === $raw['mode']
+			'enabled'   => $enabled,
+			'mode'      => SafetySettingsRepository::PROXY_MODE_CUSTOM === $mode_internal
 				? self::MODE_CUSTOM_LIST
 				: self::MODE_CLOUDFLARE,
-			'allowlist' => isset( $raw['allowlist'] ) && is_array( $raw['allowlist'] )
-				? array_values( array_filter( $raw['allowlist'], 'is_string' ) )
-				: array(),
+			'allowlist' => self::parse_allowlist_raw( $allowlist_raw ),
 		);
 	}
 
 	/**
 	 * Update settings.
 	 *
+	 * Writes through {@see SafetySettingsRepository}. Bogus CIDR entries are
+	 * still filtered here (matches the previous behaviour); the repository's
+	 * own line-level sanitiser then re-checks the textarea form.
+	 *
 	 * @param array{enabled?:bool,mode?:string,allowlist?:array<string>} $settings
 	 *
 	 * @return bool True on success.
 	 */
 	public static function update_settings( array $settings ): bool {
-		$current  = self::get_settings();
-		$enabled  = array_key_exists( 'enabled', $settings ) ? (bool) $settings['enabled'] : $current['enabled'];
-		$mode     = array_key_exists( 'mode', $settings )
-			&& self::MODE_CUSTOM_LIST === $settings['mode']
+		$current = self::get_settings();
+
+		$enabled = array_key_exists( 'enabled', $settings )
+			? (bool) $settings['enabled']
+			: $current['enabled'];
+
+		$mode = array_key_exists( 'mode', $settings ) && self::MODE_CUSTOM_LIST === $settings['mode']
 			? self::MODE_CUSTOM_LIST
 			: self::MODE_CLOUDFLARE;
+
 		$allowlist = array_key_exists( 'allowlist', $settings ) && is_array( $settings['allowlist'] )
 			? array_values( array_filter(
 				array_map( 'strval', $settings['allowlist'] ),
@@ -168,16 +187,39 @@ class TrustedProxyResolver {
 			) )
 			: $current['allowlist'];
 
-		$payload = array(
-			'enabled'   => $enabled,
-			'mode'      => $mode,
-			'allowlist' => $allowlist,
+		SafetySettingsRepository::set_trusted_proxy_enabled( $enabled );
+		SafetySettingsRepository::set_trusted_proxy_mode(
+			self::MODE_CUSTOM_LIST === $mode
+				? SafetySettingsRepository::PROXY_MODE_CUSTOM
+				: SafetySettingsRepository::PROXY_MODE_CLOUDFLARE
 		);
+		SafetySettingsRepository::set_trusted_proxy_allowlist_raw( implode( "\n", $allowlist ) );
 
-		if ( ! function_exists( 'update_option' ) ) {
-			return false;
+		return true;
+	}
+
+	/**
+	 * Parse the repository's newline-delimited allowlist string into a
+	 * `string[]` of valid CIDRs / IPs. Lines that don't validate are dropped.
+	 *
+	 * @param string $raw
+	 * @return string[]
+	 */
+	private static function parse_allowlist_raw( string $raw ): array {
+		if ( '' === $raw ) {
+			return array();
 		}
-		return update_option( self::OPTION_NAME, $payload, false );
+		$out = array();
+		foreach ( preg_split( '/\r\n|\r|\n/', $raw ) ?: array() as $line ) {
+			$line = trim( (string) $line );
+			if ( '' === $line || str_starts_with( $line, '#' ) ) {
+				continue;
+			}
+			if ( self::is_valid_cidr( $line ) ) {
+				$out[] = $line;
+			}
+		}
+		return $out;
 	}
 
 	/**
