@@ -20,7 +20,13 @@ final class SettingsAbilitiesTest extends TestCase {
 	protected function setUp(): void {
 		$GLOBALS['wp_test_options']    = array();
 		$GLOBALS['wp_test_transients'] = array();
+		$GLOBALS['wp_test_abilities']  = array();
 		unset( $_SERVER['HTTP_MCP_SESSION_ID'] );
+
+		// Register abilities used by exempt-ability-from-bucket3 tests.
+		// guard_known_ability_name() calls wp_get_ability(); without registration
+		// it returns null and the guard rejects before the test logic runs.
+		wp_register_ability( 'users/list', array() );
 	}
 
 	public function test_get_redaction_list_returns_full_state(): void {
