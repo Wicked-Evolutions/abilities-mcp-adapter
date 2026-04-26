@@ -15,7 +15,9 @@ declare(strict_types = 1);
 
 namespace WickedEvolutions\McpAdapter;
 
+use WickedEvolutions\McpAdapter\Abilities\Settings\SettingsAbilities;
 use WickedEvolutions\McpAdapter\Admin\AbilitySettingsPage;
+use WickedEvolutions\McpAdapter\Admin\SafetySettingsPage;
 use WickedEvolutions\McpAdapter\Core\McpAdapter;
 
 /**
@@ -61,10 +63,14 @@ final class Plugin {
 
 		McpAdapter::instance();
 
-		// Register admin settings page for ability permissions.
+		// Register admin settings pages.
 		if ( is_admin() ) {
 			AbilitySettingsPage::register();
+			SafetySettingsPage::register();
 		}
+
+		// Register safety-settings abilities inside the Abilities API init hook.
+		add_action( 'wp_abilities_api_init', array( SettingsAbilities::class, 'register_all' ) );
 	}
 
 	/**
