@@ -33,6 +33,11 @@ final class BoundaryEventEmitter {
 	 * Allowlist of metadata-only fields permitted in boundary tags.
 	 * Anything outside this list is dropped before emission.
 	 *
+	 * `api_key` is intentionally NOT on this list — raw API keys must never
+	 * reach typed handlers or third-party listeners. Callers that pass an
+	 * `api_key` tag have it hashed into `api_key_hash` by {@see sanitize()}
+	 * before allowlist filtering.
+	 *
 	 * @var string[]
 	 */
 	private const TAG_ALLOWLIST = array(
@@ -40,7 +45,6 @@ final class BoundaryEventEmitter {
 		'ip',
 		'user_id',
 		'session_id',
-		'api_key',
 		'api_key_hash',
 		'client_name',
 		'user_agent',
@@ -103,6 +107,18 @@ final class BoundaryEventEmitter {
 	 * @return array
 	 */
 	public static function sanitize( array $tags ): array {
+		// Hash any caller-supplied `api_key` into `api_key_hash` BEFORE allowlist
+		// filtering. The raw key never enters the emitter pipeline — neither the
+		// typed handler nor the `mcp_adapter_boundary_event` action listeners
+		// see it. If both `api_key` and `api_key_hash` are passed, the explicit
+		// hash wins (caller knows best); otherwise we derive it.
+		if ( array_key_exists( 'api_key', $tags ) ) {
+			if ( ! array_key_exists( 'api_key_hash', $tags ) && is_string( $tags['api_key'] ) && '' !== $tags['api_key'] ) {
+				$tags['api_key_hash'] = self::hash_api_key( $tags['api_key'] );
+			}
+			unset( $tags['api_key'] );
+		}
+
 		$out = array();
 		foreach ( self::TAG_ALLOWLIST as $key ) {
 			if ( ! array_key_exists( $key, $tags ) ) {
@@ -132,5 +148,18 @@ final class BoundaryEventEmitter {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * One-way hash of a raw API key, suitable for log/dashboard correlation
+	 * without exposing the secret. SHA-256 hex; truncating would lose enough
+	 * entropy to reintroduce collision risk on large fleets, so the full
+	 * digest is preserved.
+	 *
+	 * @param string $key
+	 * @return string
+	 */
+	private static function hash_api_key( string $key ): string {
+		return hash( 'sha256', $key );
 	}
 }
