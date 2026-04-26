@@ -60,6 +60,8 @@ if ( ! function_exists( 'delete_option' ) ) {
 	}
 }
 
+// Transients (DB-3's TTL-aware shape — DB-4's no-TTL variant was dropped
+// in integration; tests that don't care about TTL still get correct values).
 if ( ! isset( $GLOBALS['wp_test_transients'] ) ) {
 	$GLOBALS['wp_test_transients'] = array();
 }
@@ -109,7 +111,13 @@ if ( ! function_exists( 'wp_json_encode' ) ) {
 
 if ( ! function_exists( 'get_current_user_id' ) ) {
 	function get_current_user_id() {
-		return $GLOBALS['wp_test_current_user'] ?? 0;
+		return $GLOBALS['wp_test_current_user'] ?? ( $GLOBALS['wp_test_user_id'] ?? 0 );
+	}
+}
+
+if ( ! function_exists( 'get_current_blog_id' ) ) {
+	function get_current_blog_id() {
+		return $GLOBALS['wp_test_blog_id'] ?? 1;
 	}
 }
 
@@ -132,36 +140,98 @@ if ( ! function_exists( 'current_user_can' ) ) {
 	}
 }
 
-// Filter / action stubs — record-only, with a hook for tests that want to
-// inject filter return values via $GLOBALS['wp_test_filters'][ $hook ].
-// (DB-5's richer version. HEAD's simpler `apply_filters`/`do_action` were
-// removed during integration so this version actually loads.)
+// Filter / action stubs.
+//
+// Polymorphic on `$GLOBALS['wp_test_filters'][ $hook ]`:
+//   - DB-5 / direct-injection style: tests assign a single callable directly,
+//     e.g. `$GLOBALS['wp_test_filters']['hook'] = fn(...) => ...;`
+//   - DB-4 / registry style: tests register via `add_filter()`, which appends
+//     entry arrays of shape `array('cb' => $cb, 'args' => $n, 'pri' => $p)`.
+//
+// `apply_filters` detects which shape is present and dispatches accordingly.
+// Both styles coexist so neither side's tests had to change to integrate.
+if ( ! isset( $GLOBALS['wp_test_filters'] ) ) {
+	$GLOBALS['wp_test_filters'] = array();
+}
+
 if ( ! function_exists( 'apply_filters' ) ) {
 	function apply_filters( $hook, $value ) {
-		if ( isset( $GLOBALS['wp_test_filters'][ $hook ] ) ) {
-			$callback = $GLOBALS['wp_test_filters'][ $hook ];
-			$args     = func_get_args();
-			array_shift( $args ); // drop hook name
-			return call_user_func_array( $callback, $args );
+		$args   = func_get_args();
+		$value  = $args[1] ?? null;
+		$extras = array_slice( $args, 2 );
+
+		if ( ! isset( $GLOBALS['wp_test_filters'][ $hook ] ) ) {
+			return $value;
 		}
+
+		$registered = $GLOBALS['wp_test_filters'][ $hook ];
+
+		// Direct-injection style: a single callable is the registered value.
+		if ( is_callable( $registered ) && ! is_array( $registered ) ) {
+			$call_args = array_merge( array( $value ), $extras );
+			return call_user_func_array( $registered, $call_args );
+		}
+
+		// Registry style: array of entry arrays from add_filter().
+		if ( is_array( $registered ) ) {
+			foreach ( $registered as $entry ) {
+				if ( ! is_array( $entry ) || ! isset( $entry['cb'] ) ) {
+					continue;
+				}
+				$accepted  = (int) ( $entry['args'] ?? 1 );
+				$call_args = array_merge( array( $value ), $extras );
+				$call_args = array_slice( $call_args, 0, max( 1, $accepted ) );
+				$value     = call_user_func_array( $entry['cb'], $call_args );
+			}
+		}
+
 		return $value;
+	}
+}
+
+if ( ! function_exists( 'add_filter' ) ) {
+	function add_filter( $hook, $callable, $priority = 10, $accepted_args = 1 ) {
+		// If a direct-injection callable is already in place for this hook,
+		// don't clobber it — the test set it deliberately. Tests that mix
+		// styles per hook would already be ambiguous.
+		if ( isset( $GLOBALS['wp_test_filters'][ $hook ] )
+			&& is_callable( $GLOBALS['wp_test_filters'][ $hook ] )
+			&& ! is_array( $GLOBALS['wp_test_filters'][ $hook ] )
+		) {
+			return true;
+		}
+		if ( ! isset( $GLOBALS['wp_test_filters'][ $hook ] ) || ! is_array( $GLOBALS['wp_test_filters'][ $hook ] ) ) {
+			$GLOBALS['wp_test_filters'][ $hook ] = array();
+		}
+		$GLOBALS['wp_test_filters'][ $hook ][] = array(
+			'cb'   => $callable,
+			'args' => (int) $accepted_args,
+			'pri'  => (int) $priority,
+		);
+		return true;
+	}
+}
+
+if ( ! function_exists( 'remove_all_filters' ) ) {
+	function remove_all_filters( $hook = null ) {
+		if ( null === $hook ) {
+			$GLOBALS['wp_test_filters'] = array();
+			return true;
+		}
+		unset( $GLOBALS['wp_test_filters'][ $hook ] );
+		return true;
 	}
 }
 
 if ( ! function_exists( 'do_action' ) ) {
 	function do_action( $hook, ...$args ) {
+		// Tests don't assert action invocations.
 		return null;
 	}
 }
 
 if ( ! function_exists( 'add_action' ) ) {
 	function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
-		return true;
-	}
-}
-
-if ( ! function_exists( 'add_filter' ) ) {
-	function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
 		return true;
 	}
 }
@@ -195,6 +265,59 @@ if ( ! function_exists( 'sanitize_text_field' ) ) {
 if ( ! function_exists( 'wp_unslash' ) ) {
 	function wp_unslash( $value ) {
 		return is_string( $value ) ? stripslashes( $value ) : $value;
+	}
+}
+
+// Object cache (in-memory map, no TTL enforcement).
+if ( ! isset( $GLOBALS['wp_test_object_cache'] ) ) {
+	$GLOBALS['wp_test_object_cache'] = array();
+}
+if ( ! isset( $GLOBALS['wp_test_using_ext_cache'] ) ) {
+	$GLOBALS['wp_test_using_ext_cache'] = false;
+}
+if ( ! function_exists( 'wp_using_ext_object_cache' ) ) {
+	function wp_using_ext_object_cache( $using = null ) {
+		if ( null !== $using ) {
+			$GLOBALS['wp_test_using_ext_cache'] = (bool) $using;
+		}
+		return ! empty( $GLOBALS['wp_test_using_ext_cache'] );
+	}
+}
+if ( ! function_exists( 'wp_cache_get' ) ) {
+	function wp_cache_get( $key, $group = '' ) {
+		return $GLOBALS['wp_test_object_cache'][ $group ][ $key ] ?? false;
+	}
+}
+if ( ! function_exists( 'wp_cache_add' ) ) {
+	function wp_cache_add( $key, $value, $group = '', $ttl = 0 ) {
+		if ( isset( $GLOBALS['wp_test_object_cache'][ $group ][ $key ] ) ) {
+			return false;
+		}
+		$GLOBALS['wp_test_object_cache'][ $group ][ $key ] = $value;
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_cache_set' ) ) {
+	function wp_cache_set( $key, $value, $group = '', $ttl = 0 ) {
+		$GLOBALS['wp_test_object_cache'][ $group ][ $key ] = $value;
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_cache_incr' ) ) {
+	function wp_cache_incr( $key, $offset = 1, $group = '' ) {
+		if ( ! isset( $GLOBALS['wp_test_object_cache'][ $group ][ $key ] ) ) {
+			return false;
+		}
+		$current = (int) $GLOBALS['wp_test_object_cache'][ $group ][ $key ];
+		$new     = $current + (int) $offset;
+		$GLOBALS['wp_test_object_cache'][ $group ][ $key ] = $new;
+		return $new;
+	}
+}
+if ( ! function_exists( 'wp_cache_delete' ) ) {
+	function wp_cache_delete( $key, $group = '' ) {
+		unset( $GLOBALS['wp_test_object_cache'][ $group ][ $key ] );
+		return true;
 	}
 }
 

@@ -14,6 +14,9 @@ declare( strict_types=1 );
 namespace WickedEvolutions\McpAdapter\Transport\Infrastructure;
 
 use WickedEvolutions\McpAdapter\Infrastructure\ErrorHandling\McpErrorFactory;
+use WickedEvolutions\McpAdapter\Infrastructure\Observability\BoundaryEventEmitter;
+use WickedEvolutions\McpAdapter\RateLimit\RateLimiter;
+use WickedEvolutions\McpAdapter\RateLimit\TrustedProxyResolver;
 
 /**
  * Service for routing MCP requests to appropriate handlers.
@@ -31,14 +34,24 @@ class RequestRouter {
 	private McpTransportContext $context;
 
 	/**
+	 * Rate limiter used to short-circuit hot callers before handler dispatch.
+	 *
+	 * @var \WickedEvolutions\McpAdapter\RateLimit\RateLimiter
+	 */
+	private RateLimiter $rate_limiter;
+
+	/**
 	 * Initialize the request router.
 	 *
-	 * @param \WickedEvolutions\McpAdapter\Transport\Infrastructure\McpTransportContext $context The transport context.
+	 * @param \WickedEvolutions\McpAdapter\Transport\Infrastructure\McpTransportContext $context      The transport context.
+	 * @param \WickedEvolutions\McpAdapter\RateLimit\RateLimiter|null                   $rate_limiter Optional limiter (mainly for tests).
 	 */
 	public function __construct(
-		McpTransportContext $context
+		McpTransportContext $context,
+		?RateLimiter $rate_limiter = null
 	) {
-		$this->context = $context;
+		$this->context      = $context;
+		$this->rate_limiter = $rate_limiter ?? new RateLimiter();
 	}
 
 	/**
@@ -80,6 +93,15 @@ class RequestRouter {
 			'completion/complete' => fn() => $this->context->system_handler->complete( $request_id ),
 			'roots/list'          => fn() => $this->context->system_handler->list_roots( $request_id ),
 		);
+
+		// Rate-limit gate — runs after auth resolves, before handler dispatch.
+		// `initialize` is exempted so a brand-new client can always negotiate.
+		if ( 'initialize' !== $method ) {
+			$rate_limit_result = $this->apply_rate_limit( $method, $request_id, $common_tags, $start_time, $http_context );
+			if ( null !== $rate_limit_result ) {
+				return $rate_limit_result;
+			}
+		}
 
 		try {
 			$result = isset( $handlers[ $method ] ) ? $handlers[ $method ]() : $this->create_method_not_found_error( $method );
@@ -137,6 +159,89 @@ class RequestRouter {
 			// Create error response from exception.
 			return array( 'error' => McpErrorFactory::internal_error( $request_id, 'Handler error occurred' )['error'] );
 		}
+	}
+
+	/**
+	 * Run the rate limiter and, on deny, emit the boundary event and return
+	 * the JSON-RPC error envelope. Returns null when the request is allowed.
+	 *
+	 * @param string $method
+	 * @param mixed  $request_id
+	 * @param array  $common_tags
+	 * @param float  $start_time
+	 * @param \WickedEvolutions\McpAdapter\Transport\Infrastructure\HttpRequestContext|null $http_context
+	 * @return array|null
+	 */
+	private function apply_rate_limit( string $method, $request_id, array $common_tags, float $start_time, ?HttpRequestContext $http_context ): ?array {
+		$server_array = isset( $_SERVER ) && is_array( $_SERVER ) ? $_SERVER : array();
+		$client_ip    = TrustedProxyResolver::resolve( $server_array );
+		$user_id      = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
+		$server_id    = $this->context->mcp_server->get_server_id();
+		$site_key     = RateLimiter::build_site_key( $server_id );
+
+		$client_name = '';
+		if ( isset( $common_tags['params']['client_name'] ) && is_string( $common_tags['params']['client_name'] ) ) {
+			$client_name = $common_tags['params']['client_name'];
+		}
+
+		$tags_for_filter = array(
+			'method'      => $method,
+			'user_id'     => $user_id,
+			'session_id'  => $http_context ? $http_context->session_id : null,
+			'client_name' => $client_name,
+		);
+
+		$verdict = $this->rate_limiter->check( $method, $client_ip, $user_id, $site_key, $tags_for_filter );
+
+		if ( ( $verdict[0] ?? '' ) !== 'deny' ) {
+			return null;
+		}
+
+		$retry_after = (int) ( $verdict[1] ?? 1 );
+		$reason      = (string) ( $verdict[2] ?? 'rate_limited' );
+		$dimension   = (string) ( $verdict[3] ?? RateLimiter::DIMENSION_IP );
+		$limit       = (int) ( $verdict[4] ?? 0 );
+		$window      = (int) ( $verdict[5] ?? 0 );
+
+		$retry_after_ms = $retry_after * 1000;
+
+		$error = McpErrorFactory::rate_limited( $request_id, $retry_after_ms, $limit, $window, $dimension );
+
+		// Boundary event — sanitized, PII-safe.
+		$boundary_tags = array(
+			'severity'       => 'warn',
+			'method'         => $method,
+			'session_id'     => $http_context ? $http_context->session_id : null,
+			'client_name'    => $client_name,
+			'user_id'        => $user_id,
+			'ip'             => TrustedProxyResolver::truncate_for_log( $client_ip ),
+			'reason'         => $reason,
+			'dimension'      => $dimension,
+			'limit'          => $limit,
+			'window'         => $window,
+			'retry_after_ms' => $retry_after_ms,
+			'status_code'    => 429,
+			'transport'      => $common_tags['transport'] ?? 'unknown',
+			'error_code'     => McpErrorFactory::RATE_LIMITED,
+		);
+		BoundaryEventEmitter::emit( $this->context->observability_handler, 'boundary.rate_limit_hit', $boundary_tags );
+
+		// Observability — record the short-circuit so dashboards still see it.
+		$duration = ( microtime( true ) - $start_time ) * 1000;
+		$tags     = array_merge(
+			$common_tags,
+			array(
+				'status'         => 'error',
+				'error_code'     => McpErrorFactory::RATE_LIMITED,
+				'dimension'      => $dimension,
+				'limit'          => $limit,
+				'window'         => $window,
+				'retry_after_ms' => $retry_after_ms,
+			)
+		);
+		$this->context->observability_handler->record_event( 'mcp.request', $tags, $duration );
+
+		return array( 'error' => $error['error'] );
 	}
 
 	/**

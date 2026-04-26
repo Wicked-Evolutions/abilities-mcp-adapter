@@ -253,6 +253,21 @@ class McpErrorFactoryTest extends TestCase {
 		$this->assertSame( 504, McpErrorFactory::mcp_error_to_http_status( McpErrorFactory::TIMEOUT_ERROR ) );
 	}
 
+	public function test_rate_limited_maps_to_429(): void {
+		$this->assertSame( 429, McpErrorFactory::mcp_error_to_http_status( McpErrorFactory::RATE_LIMITED ) );
+	}
+
+	public function test_rate_limited_factory_carries_data_payload(): void {
+		$error = McpErrorFactory::rate_limited( 7, 23000, 60, 60, 'ip' );
+		$this->assertSame( McpErrorFactory::RATE_LIMITED, $error['error']['code'] );
+		$this->assertSame( 'Rate limit exceeded', $error['error']['message'] );
+		$this->assertSame( 23000, $error['error']['data']['retry_after_ms'] );
+		$this->assertSame( 60, $error['error']['data']['limit'] );
+		$this->assertSame( 60, $error['error']['data']['window'] );
+		$this->assertSame( 'ip', $error['error']['data']['dimension'] );
+		$this->assertSame( 7, $error['id'] );
+	}
+
 	public function test_invalid_params_maps_to_200(): void {
 		$this->assertSame( 200, McpErrorFactory::mcp_error_to_http_status( McpErrorFactory::INVALID_PARAMS ) );
 	}
