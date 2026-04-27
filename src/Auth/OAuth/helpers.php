@@ -86,6 +86,55 @@ if ( ! function_exists( 'oauth_log_boundary' ) ) {
 	}
 }
 
+if ( ! function_exists( 'oauth_is_mcp_resource_request' ) ) {
+	/**
+	 * Whether the current REST request targets the MCP resource endpoint (C-1, H.1.2).
+	 *
+	 * Bearer auth must be a no-op for any other URI: tokens are bound to
+	 * /wp-json/mcp/mcp-adapter-default-server, but `determine_current_user`
+	 * fires on every REST request. Without this gate a token issued for the
+	 * MCP resource silently authenticates the bound user on /wp-json/wp/v2/*,
+	 * /wp-json/wp/v2/plugins, etc. — where the H.1.3 scope enforcer never
+	 * fires — effectively turning the Bearer into a session cookie.
+	 *
+	 * Matches both pretty-permalinks (/wp-json/<ns>/<route>) and plain-permalinks
+	 * (?rest_route=/<ns>/<route>).
+	 */
+	function oauth_is_mcp_resource_request(): bool {
+		$uri = $_SERVER['REQUEST_URI'] ?? '';
+		if ( ! is_string( $uri ) || $uri === '' ) {
+			return false;
+		}
+
+		$rest_route = '/mcp/mcp-adapter-default-server';
+
+		// Pretty permalinks. Derive the path from rest_url() so subdir / multisite
+		// installs (e.g. /wp/wp-json/...) are matched against their actual prefix.
+		if ( function_exists( 'rest_url' ) ) {
+			$resource_url  = (string) rest_url( 'mcp/mcp-adapter-default-server' );
+			$resource_path = (string) parse_url( $resource_url, PHP_URL_PATH );
+			if ( $resource_path !== '' && str_starts_with( $uri, $resource_path ) ) {
+				$tail = substr( $uri, strlen( $resource_path ) );
+				if ( $tail === '' || $tail[0] === '/' || $tail[0] === '?' ) {
+					return true;
+				}
+			}
+		}
+
+		// Plain permalinks: ?rest_route=/mcp/mcp-adapter-default-server.
+		$query = (string) parse_url( $uri, PHP_URL_QUERY );
+		if ( $query !== '' ) {
+			parse_str( $query, $params );
+			$route = (string) ( $params['rest_route'] ?? '' );
+			if ( $route === $rest_route || str_starts_with( $route, $rest_route . '/' ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+}
+
 if ( ! function_exists( 'token_error' ) ) {
 	/**
 	 * Emit a token endpoint error response per RFC 6749 §5.2 and exit (H.3.7).
