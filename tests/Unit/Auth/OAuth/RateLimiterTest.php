@@ -2,7 +2,10 @@
 /**
  * Tests for RateLimiter (DCR rate limiting).
  *
- * Uses the in-memory transient stub from bootstrap.php.
+ * H-4: RateLimiter now uses get_site_transient / set_site_transient as the
+ * non-object-cache fallback so rate windows are network-wide on multisite.
+ * Tests use wp_test_site_transients (separate in-memory store from
+ * wp_test_transients) accordingly.
  *
  * @package WickedEvolutions\McpAdapter\Tests\Unit\Auth\OAuth
  */
@@ -17,8 +20,12 @@ use WickedEvolutions\McpAdapter\Auth\OAuth\RateLimiter;
 final class RateLimiterTest extends TestCase {
 
 	protected function setUp(): void {
-		$GLOBALS['wp_test_transients'] = [];
-		$GLOBALS['wp_test_options']    = [];
+		$GLOBALS['wp_test_site_transients'] = array();
+		$GLOBALS['wp_test_transients']      = array();
+		$GLOBALS['wp_test_options']         = array();
+		// Ensure object cache path is NOT active for these tests.
+		wp_using_ext_object_cache( false );
+		$GLOBALS['wp_test_object_cache'] = array();
 	}
 
 	public function test_first_request_from_ip_is_allowed(): void {
@@ -40,23 +47,24 @@ final class RateLimiterTest extends TestCase {
 
 		RateLimiter::record_dcr( $ip );
 
-		$this->assertSame( 1, (int) get_transient( $key_min ) );
-		$this->assertSame( 1, (int) get_transient( $key_hr ) );
+		// H-4: counters now live in site_transients (network-wide on multisite).
+		$this->assertSame( 1, (int) get_site_transient( $key_min ) );
+		$this->assertSame( 1, (int) get_site_transient( $key_hr ) );
 	}
 
 	public function test_exceeded_hour_limit_returns_3600(): void {
-		$ip = '203.0.113.30';
+		$ip     = '203.0.113.30';
 		$key_hr = 'abilities_oauth_dcr_rph_' . md5( $ip );
-		set_transient( $key_hr, 100, 3600 ); // exactly at hourly limit
+		set_site_transient( $key_hr, 100, 3600 ); // exactly at hourly limit
 
 		$result = RateLimiter::check_dcr( $ip );
 		$this->assertSame( 3600, $result );
 	}
 
 	public function test_exceeded_minute_limit_returns_60(): void {
-		$ip = '203.0.113.40';
+		$ip      = '203.0.113.40';
 		$key_min = 'abilities_oauth_dcr_rpm_' . md5( $ip );
-		set_transient( $key_min, 10, 60 ); // exactly at per-minute limit
+		set_site_transient( $key_min, 10, 60 ); // exactly at per-minute limit
 
 		$result = RateLimiter::check_dcr( $ip );
 		$this->assertSame( 60, $result );

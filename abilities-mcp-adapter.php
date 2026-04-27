@@ -50,6 +50,7 @@ use WickedEvolutions\McpAdapter\Admin\AbilitySettingsPage;
 use WickedEvolutions\McpAdapter\Admin\AdapterAdminPage;
 use WickedEvolutions\McpAdapter\Admin\SafetySettingsPage;
 use WickedEvolutions\McpAdapter\Auth\OAuth\AuthorizationServer;
+use WickedEvolutions\McpAdapter\Auth\OAuth\OAuthCleanup;
 use WickedEvolutions\McpAdapter\Core\McpAdapter;
 use WickedEvolutions\McpAdapter\RateLimit\TrustedProxyResolver;
 
@@ -114,7 +115,7 @@ add_action( 'init', function() {
 	McpAdapter::instance();
 }, 5 );
 
-// Rate-limiter trusted-proxy support: weekly Cloudflare IP refresh.
+// Register custom cron intervals.
 add_filter( 'cron_schedules', static function ( $schedules ) {
 	if ( ! isset( $schedules['abilities_mcp_weekly'] ) ) {
 		$schedules['abilities_mcp_weekly'] = array(
@@ -122,8 +123,16 @@ add_filter( 'cron_schedules', static function ( $schedules ) {
 			'display'  => __( 'Once Weekly (Abilities MCP)', 'mcp-adapter' ),
 		);
 	}
+	if ( ! isset( $schedules[ OAuthCleanup::SCHEDULE ] ) ) {
+		$schedules[ OAuthCleanup::SCHEDULE ] = array(
+			'interval' => DAY_IN_SECONDS,
+			'display'  => __( 'Once Daily (Abilities MCP OAuth Cleanup)', 'mcp-adapter' ),
+		);
+	}
 	return $schedules;
 } );
+
+// Rate-limiter trusted-proxy support: weekly Cloudflare IP refresh.
 add_action( TrustedProxyResolver::CRON_HOOK, array( TrustedProxyResolver::class, 'refresh_cloudflare_ips' ) );
 add_action( 'init', static function () {
 	if ( function_exists( 'wp_next_scheduled' ) && function_exists( 'wp_schedule_event' )
@@ -133,6 +142,13 @@ add_action( 'init', static function () {
 	}
 }, 20 );
 
+// H-3: Daily OAuth table cleanup cron.
+add_action( OAuthCleanup::CRON_HOOK, array( OAuthCleanup::class, 'run' ) );
+// Ensure the schedule survives plugin updates (activation hook only fires on first activate).
+add_action( 'init', array( OAuthCleanup::class, 'schedule' ), 25 );
+
+register_activation_hook( __FILE__, array( OAuthCleanup::class, 'schedule' ) );
+
 register_deactivation_hook( __FILE__, static function () {
 	if ( function_exists( 'wp_next_scheduled' ) && function_exists( 'wp_unschedule_event' ) ) {
 		$timestamp = wp_next_scheduled( TrustedProxyResolver::CRON_HOOK );
@@ -140,4 +156,5 @@ register_deactivation_hook( __FILE__, static function () {
 			wp_unschedule_event( $timestamp, TrustedProxyResolver::CRON_HOOK );
 		}
 	}
+	OAuthCleanup::unschedule();
 } );
