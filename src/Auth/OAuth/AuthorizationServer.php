@@ -187,17 +187,56 @@ final class AuthorizationServer {
 		}
 
 		$path = strtok( $_SERVER['REQUEST_URI'] ?? '', '?' );
+		if ( ! is_string( $path ) ) {
+			return;
+		}
 
-		match ( $path ) {
-			'/.well-known/oauth-protected-resource'  => DiscoveryEndpoints::serve_protected_resource(),
-			'/.well-known/oauth-authorization-server'=> DiscoveryEndpoints::serve_authorization_server(),
-			'/.well-known/openid-configuration'      => DiscoveryEndpoints::serve_oidc_configuration(),
-			'/oauth/authorize'                       => AuthorizeEndpoint::dispatch(),
-			default => null,
-		};
+		// Path-style multisite discovery (M-5): the bridge probes paths like
+		//   /.well-known/oauth-authorization-server/sub2
+		//   /.well-known/openid-configuration/sub2
+		//   /sub2/.well-known/openid-configuration
+		// Extract any trailing segment after the .well-known keyword as the
+		// path-prefix that identifies the subsite.
+		if ( str_starts_with( $path, '/.well-known/oauth-protected-resource' ) ) {
+			$prefix = self::extract_path_prefix( $path, '/.well-known/oauth-protected-resource' );
+			DiscoveryEndpoints::serve_protected_resource( $prefix );
+		} elseif ( str_starts_with( $path, '/.well-known/oauth-authorization-server' ) ) {
+			$prefix = self::extract_path_prefix( $path, '/.well-known/oauth-authorization-server' );
+			DiscoveryEndpoints::serve_authorization_server( $prefix );
+		} elseif ( str_starts_with( $path, '/.well-known/openid-configuration' ) ) {
+			$prefix = self::extract_path_prefix( $path, '/.well-known/openid-configuration' );
+			DiscoveryEndpoints::serve_oidc_configuration( $prefix );
+		} elseif ( $path === '/oauth/authorize' ) {
+			AuthorizeEndpoint::dispatch();
+		}
 	}
 
-	private static function is_well_known_or_oauth_path(): bool {
+	/**
+	 * Extract the subsite path prefix appended after a known .well-known keyword.
+	 *
+	 * For path-style multisite, discovery clients append the subsite path:
+	 *   /.well-known/oauth-authorization-server/sub2  → '/sub2'
+	 *   /.well-known/oauth-authorization-server        → null  (root site)
+	 *
+	 * @param string $full_path    The full request path (no query string).
+	 * @param string $known_prefix The matched .well-known prefix.
+	 * @return string|null The trailing path segment, or null for root sites.
+	 */
+	public static function extract_path_prefix( string $full_path, string $known_prefix ): ?string {
+		$tail = substr( $full_path, strlen( $known_prefix ) );
+		// Trim trailing slashes; empty string means root site.
+		$tail = rtrim( $tail, '/' );
+		if ( $tail === '' ) {
+			return null;
+		}
+		// Must start with '/' — guard against malformed input.
+		if ( ! str_starts_with( $tail, '/' ) ) {
+			return null;
+		}
+		return $tail;
+	}
+
+	public static function is_well_known_or_oauth_path(): bool {
 		$uri = $_SERVER['REQUEST_URI'] ?? '';
 		if ( ! is_string( $uri ) || $uri === '' ) {
 			return false;
