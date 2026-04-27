@@ -86,8 +86,8 @@ final class AuthorizeEndpoint {
 		$validation         = AuthorizeRequestValidator::validate( $params, $resource_indicator );
 
 		if ( $validation->is_pre_redirect_error() ) {
-			oauth_log_boundary( 'boundary.oauth_authorize_error', array(
-				'ip'         => oauth_client_ip(),
+			\oauth_log_boundary( 'boundary.oauth_authorize_error', array(
+				'ip'         => \oauth_client_ip(),
 				'reason'     => 'pre_redirect_validation_failed',
 				'error_code' => $validation->error_code,
 			) );
@@ -98,7 +98,7 @@ final class AuthorizeEndpoint {
 		}
 
 		if ( $validation->is_redirectable_error() ) {
-			oauth_log_boundary( 'boundary.oauth_authorize_error', array(
+			\oauth_log_boundary( 'boundary.oauth_authorize_error', array(
 				'client_id'  => (string) $validation->client->client_id,
 				'reason'     => 'redirectable_validation_failed',
 				'error_code' => $validation->error_code,
@@ -165,12 +165,12 @@ final class AuthorizeEndpoint {
 
 		if ( $interactive ) {
 			LastConsentLookup::record( $client_id, $user_id, time() );
-			oauth_log_boundary( 'boundary.oauth_authorization_granted', array(
+			\oauth_log_boundary( 'boundary.oauth_authorization_granted', array(
 				'client_id' => $client_id,
 				'user_id'   => $user_id,
 			) );
 		} else {
-			oauth_log_boundary( 'boundary.oauth_authorization_auto_approved', array(
+			\oauth_log_boundary( 'boundary.oauth_authorization_auto_approved', array(
 				'client_id' => $client_id,
 				'user_id'   => $user_id,
 			) );
@@ -250,7 +250,7 @@ final class AuthorizeEndpoint {
 
 		$decision_field = (string) ( $params[ ConsentScreenRenderer::DECISION_FIELD ] ?? '' );
 		if ( ConsentScreenRenderer::DECISION_DENY === $decision_field ) {
-			oauth_log_boundary( 'boundary.oauth_authorization_denied', array(
+			\oauth_log_boundary( 'boundary.oauth_authorization_denied', array(
 				'client_id' => (string) $client->client_id,
 				'user_id'   => $user_id,
 				'reason'    => 'operator_denied',
@@ -285,7 +285,7 @@ final class AuthorizeEndpoint {
 			$validation->state,
 			$submitted_scopes
 		) ) {
-			oauth_log_boundary( 'boundary.oauth_authorize_error', array(
+			\oauth_log_boundary( 'boundary.oauth_authorize_error', array(
 				'client_id' => (string) $client->client_id,
 				'user_id'   => $user_id,
 				'reason'    => 'scope_subset_violation',
@@ -302,7 +302,7 @@ final class AuthorizeEndpoint {
 		if ( ! empty( $available_roles ) ) {
 			// If the form sent any role, it must be one the user actually holds.
 			if ( '' !== $submitted_role && ! RoleSelector::user_holds_role( $user_id, $submitted_role ) ) {
-				oauth_log_boundary( 'boundary.oauth_authorize_error', array(
+				\oauth_log_boundary( 'boundary.oauth_authorize_error', array(
 					'client_id' => (string) $client->client_id,
 					'user_id'   => $user_id,
 					'reason'    => 'role_escalation_attempt',

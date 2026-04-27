@@ -700,6 +700,6 @@ if ( ! function_exists( 'get_userdata' ) ) {
 	}
 }
 
-// Autoload global OAuth helpers from AuthorizationServer.php so all tests can call them.
-// The file guards each function with if(!function_exists(...)) so it's safe to require here.
-require_once dirname( __DIR__ ) . '/src/Auth/OAuth/AuthorizationServer.php';
+// Autoload global OAuth helpers so all tests can call them.
+// helpers.php is in the global namespace and guards each function with function_exists().
+require_once dirname( __DIR__ ) . '/src/Auth/OAuth/helpers.php';
