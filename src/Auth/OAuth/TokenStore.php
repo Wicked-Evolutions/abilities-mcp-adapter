@@ -241,14 +241,75 @@ final class TokenStore {
 	}
 
 	/**
+	 * Look up basic metadata (client_id, family_id, type) for a plaintext token.
+	 *
+	 * Returns an object with:
+	 *   - client_id  string
+	 *   - family_id  string|null  (null for access tokens)
+	 *   - type       'access'|'refresh'
+	 *
+	 * Returns null when the token is not found in either table. Used by
+	 * RevokeEndpoint to verify client ownership before revoking (H-2, RFC 7009 §2.1).
+	 */
+	public static function find_token_meta( string $token ): ?object {
+		global $wpdb;
+		$hash = hash( 'sha256', $token );
+
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT client_id, NULL AS family_id, \'access\' AS type FROM `' . self::access_table() . '` WHERE token_hash = %s',
+				$hash
+			)
+		);
+		if ( $row ) {
+			return $row;
+		}
+
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT client_id, family_id, \'refresh\' AS type FROM `' . self::refresh_table() . '` WHERE token_hash = %s',
+				$hash
+			)
+		);
+		return $row ?: null;
+	}
+
+	/**
 	 * Revoke an access or refresh token by plaintext value.
+	 *
+	 * For refresh tokens, also cascades to revoke the entire family (H-2):
+	 * revoking a refresh token must invalidate all access tokens in the family
+	 * so the client cannot obtain new access tokens by replaying sibling refreshes.
+	 *
 	 * Idempotent — always returns true per RFC 7009.
 	 */
 	public static function revoke_by_plaintext( string $token ): void {
 		global $wpdb;
 		$hash = hash( 'sha256', $token );
-		$wpdb->update( self::access_table(),  [ 'revoked' => 1 ], [ 'token_hash' => $hash ], [ '%d' ], [ '%s' ] );
-		$wpdb->update( self::refresh_table(), [ 'revoked' => 1 ], [ 'token_hash' => $hash ], [ '%d' ], [ '%s' ] );
+
+		// Cascade: if this is a refresh token, revoke the whole family.
+		$refresh_row = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT family_id FROM `' . self::refresh_table() . '` WHERE token_hash = %s',
+				$hash
+			)
+		);
+		if ( $refresh_row && isset( $refresh_row->family_id ) ) {
+			self::revoke_family( (string) $refresh_row->family_id );
+			return;
+		}
+
+		// For access tokens: revoke the access token and its paired refresh token(s).
+		$access_row = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT id FROM `' . self::access_table() . '` WHERE token_hash = %s',
+				$hash
+			)
+		);
+		$wpdb->update( self::access_table(), [ 'revoked' => 1 ], [ 'token_hash' => $hash ], [ '%d' ], [ '%s' ] );
+		if ( $access_row && isset( $access_row->id ) ) {
+			$wpdb->update( self::refresh_table(), [ 'revoked' => 1 ], [ 'access_token_id' => (int) $access_row->id ], [ '%d' ], [ '%d' ] );
+		}
 	}
 
 	/**
