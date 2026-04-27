@@ -445,3 +445,53 @@ if ( ! class_exists( 'WP_Error' ) ) {
 		}
 	}
 }
+
+// ---- OAuth stubs ----
+
+if ( ! function_exists( 'is_ssl' ) ) {
+	function is_ssl() {
+		return ! empty( $_SERVER['HTTPS'] ) && $_SERVER['HTTPS'] !== 'off';
+	}
+}
+
+if ( ! function_exists( 'rest_url' ) ) {
+	function rest_url( $path = '' ) {
+		$base = ( $GLOBALS['wp_test_home_url'] ?? 'https://example.com' ) . '/wp-json/';
+		return $base . ltrim( $path, '/' );
+	}
+}
+
+if ( ! function_exists( 'esc_url_raw' ) ) {
+	function esc_url_raw( $url ) {
+		return filter_var( (string) $url, FILTER_SANITIZE_URL ) ?: '';
+	}
+}
+
+if ( ! function_exists( 'status_header' ) ) {
+	function status_header( $code ) {
+		// No-op in test environment.
+	}
+}
+
+if ( ! function_exists( 'wp_generate_uuid4' ) ) {
+	function wp_generate_uuid4() {
+		return sprintf(
+			'%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+			mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff ),
+			mt_rand( 0, 0xffff ),
+			mt_rand( 0, 0x0fff ) | 0x4000,
+			mt_rand( 0, 0x3fff ) | 0x8000,
+			mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff )
+		);
+	}
+}
+
+if ( ! function_exists( 'absint' ) ) {
+	function absint( $maybeint ) {
+		return abs( (int) $maybeint );
+	}
+}
+
+// Autoload global OAuth helpers from AuthorizationServer.php so all tests can call them.
+// The file guards each function with if(!function_exists(...)) so it's safe to require here.
+require_once dirname( __DIR__ ) . '/src/Auth/OAuth/AuthorizationServer.php';
