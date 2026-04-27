@@ -84,7 +84,7 @@ final class AuthorizationServer {
 	/** Run DB migration if schema version has changed. */
 	public static function maybe_run_migration(): void {
 		$version_key = 'abilities_oauth_db_version';
-		$current     = '1.0.0';
+		$current     = '1.1.0'; // 1.1.0: refresh replay blob columns (C-2).
 
 		if ( get_option( $version_key ) === $current ) {
 			return;
@@ -165,6 +165,8 @@ final class AuthorizationServer {
 			revoked          TINYINT(1)      NOT NULL DEFAULT 0,
 			rotated_at       DATETIME                 DEFAULT NULL,
 			rotated_to_hash  VARCHAR(64)              DEFAULT NULL,
+			replay_blob      LONGBLOB                 DEFAULT NULL,
+			replay_blob_iv   VARCHAR(32)              DEFAULT NULL,
 			created_at       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (id),
 			UNIQUE KEY token_hash (token_hash),

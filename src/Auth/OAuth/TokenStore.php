@@ -138,12 +138,22 @@ final class TokenStore {
 
 	/**
 	 * Rotate a refresh token. Returns a new access+refresh pair.
-	 * Implements family revocation and idempotent retry grace (H.2.1).
+	 *
+	 * Implements family revocation and idempotent retry grace (H.2.1, C-2):
+	 *
+	 *   - Within ROTATION_GRACE_SECONDS of a successful rotation, a retry with
+	 *     the same old refresh token returns the *same* plaintext pair issued
+	 *     at rotation time. The pair is stored encrypted-at-rest under a key
+	 *     derived from the old plaintext token (HKDF over AUTH_KEY); only a
+	 *     client presenting the original token can decrypt. On successful
+	 *     retry the blob is wiped (one-shot delivery).
+	 *
+	 *   - Outside the grace window, a retry is treated as replay: the entire
+	 *     token family is revoked and the blob is wiped.
 	 *
 	 * @param string $refresh_token Plaintext refresh token.
 	 * @param string $client_id     Must match stored client_id.
 	 * @return array|null Token pair on success; null triggers invalid_grant.
-	 *                    Returns 'family_revoked' key = true if family was revoked.
 	 */
 	public static function rotate( string $refresh_token, string $client_id ): ?array {
 		global $wpdb;
@@ -173,20 +183,31 @@ final class TokenStore {
 			$age           = time() - $rotated_at_ts;
 
 			if ( $age <= self::ROTATION_GRACE_SECONDS ) {
-				// Idempotent retry within grace window — return the same pair.
-				$new_access_row = $wpdb->get_row(
-					$wpdb->prepare(
-						'SELECT * FROM `' . self::access_table() . '` WHERE token_hash = %s',
-						$row->rotated_to_hash
-					)
+				// Idempotent retry within grace window — decrypt and return the
+				// original plaintext pair issued at rotation time.
+				$pair = self::decrypt_replay_blob( $row, $refresh_token );
+				if ( $pair === null ) {
+					// Blob missing or decryption failed — pre-C-2 row, or row
+					// already consumed by a prior retry. Fall through to invalid_grant.
+					return null;
+				}
+
+				// One-shot delivery: wipe the blob so a subsequent retry within
+				// the grace window cannot replay the same plaintext again.
+				$wpdb->update(
+					self::refresh_table(),
+					[ 'replay_blob' => null, 'replay_blob_iv' => null ],
+					[ 'token_hash' => $refresh_hash ],
+					[ '%s', '%s' ],
+					[ '%s' ]
 				);
-				// We can't return the plaintext (it's hashed) — tell caller to re-issue with the existing row.
-				return [ '__idempotent_retry__' => true, 'access_row' => $new_access_row, 'refresh_row' => $row ];
-			} else {
-				// Replay detected — revoke entire family.
-				self::revoke_family( $row->family_id );
-				return null; // invalid_grant — also signals family revoked.
+
+				return $pair;
 			}
+
+			// Replay detected outside grace — revoke entire family and wipe blob.
+			self::revoke_family( $row->family_id );
+			return null;
 		}
 
 		// Normal rotation path: token is valid, not yet rotated.
@@ -204,6 +225,11 @@ final class TokenStore {
 		$new_pair = self::issue( $row->client_id, (int) $row->user_id, $row->scope, $row->resource, self::ACCESS_TTL, self::REFRESH_TTL, $row->family_id );
 		$new_refresh_hash = hash( 'sha256', $new_pair['refresh_token'] );
 
+		// Encrypt the plaintext pair under a key derived from the *old* refresh
+		// token. Stored on the old row so a retry with the same old token can
+		// decrypt it within the grace window.
+		$encrypted = self::encrypt_replay_blob( $new_pair, $refresh_token );
+
 		// Mark old refresh as rotated (atomic update with condition).
 		$updated = $wpdb->update(
 			self::refresh_table(),
@@ -211,9 +237,11 @@ final class TokenStore {
 				'revoked'         => 1,
 				'rotated_at'      => gmdate( 'Y-m-d H:i:s' ),
 				'rotated_to_hash' => $new_refresh_hash,
+				'replay_blob'     => $encrypted['ciphertext'],
+				'replay_blob_iv'  => $encrypted['iv'],
 			],
 			[ 'token_hash' => $refresh_hash, 'revoked' => 0 ],
-			[ '%d', '%s', '%s' ],
+			[ '%d', '%s', '%s', '%s', '%s' ],
 			[ '%s', '%d' ]
 		);
 
@@ -223,6 +251,80 @@ final class TokenStore {
 		}
 
 		return $new_pair;
+	}
+
+	/**
+	 * Derive a 32-byte AES-256-GCM key from the old refresh token's plaintext.
+	 *
+	 * HKDF-SHA256 binds the key to (a) the plaintext of the old refresh token
+	 * — supplied by the retrying client — and (b) AUTH_KEY, which is private to
+	 * the WP installation. A DB exfiltrator without the original plaintext
+	 * cannot decrypt the blob; the original plaintext is never persisted.
+	 *
+	 * If AUTH_KEY is not defined (e.g. test environment), an empty salt is used.
+	 * The token plaintext alone still provides 256 bits of secret input.
+	 */
+	private static function replay_blob_key( string $old_refresh_plaintext ): string {
+		$salt = defined( 'AUTH_KEY' ) ? (string) AUTH_KEY : '';
+		return hash_hkdf( 'sha256', $old_refresh_plaintext, 32, 'oauth-replay-blob', $salt );
+	}
+
+	/**
+	 * Encrypt the new token pair for grace-window replay.
+	 *
+	 * @param array  $pair                  The pair returned by issue().
+	 * @param string $old_refresh_plaintext Used to derive the encryption key.
+	 * @return array{ciphertext: string, iv: string}
+	 */
+	private static function encrypt_replay_blob( array $pair, string $old_refresh_plaintext ): array {
+		$plaintext = json_encode( [
+			'access_token'  => $pair['access_token'],
+			'token_type'    => $pair['token_type'],
+			'refresh_token' => $pair['refresh_token'],
+			'expires_in'    => $pair['expires_in'],
+			'scope'         => $pair['scope'],
+		] );
+		$key = self::replay_blob_key( $old_refresh_plaintext );
+		$iv  = random_bytes( 12 );
+		$tag = '';
+		$ct  = openssl_encrypt( $plaintext, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag );
+		// ciphertext is stored as ciphertext || tag; iv stored as hex.
+		return [
+			'ciphertext' => $ct . $tag,
+			'iv'         => bin2hex( $iv ),
+		];
+	}
+
+	/**
+	 * Decrypt a stored replay blob using the supplied old refresh token plaintext.
+	 *
+	 * Returns the original token-pair array shape, or null if the blob is missing,
+	 * malformed, or the supplied plaintext does not derive the correct key.
+	 */
+	private static function decrypt_replay_blob( object $row, string $old_refresh_plaintext ): ?array {
+		if ( empty( $row->replay_blob ) || empty( $row->replay_blob_iv ) ) {
+			return null;
+		}
+		$blob = (string) $row->replay_blob;
+		if ( strlen( $blob ) < 16 ) {
+			return null;
+		}
+		$tag = substr( $blob, -16 );
+		$ct  = substr( $blob, 0, -16 );
+		$iv  = @hex2bin( (string) $row->replay_blob_iv );
+		if ( $iv === false || strlen( $iv ) !== 12 ) {
+			return null;
+		}
+		$key = self::replay_blob_key( $old_refresh_plaintext );
+		$pt  = openssl_decrypt( $ct, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag );
+		if ( $pt === false ) {
+			return null;
+		}
+		$decoded = json_decode( $pt, true );
+		if ( ! is_array( $decoded ) || ! isset( $decoded['access_token'], $decoded['refresh_token'] ) ) {
+			return null;
+		}
+		return $decoded;
 	}
 
 	/**
