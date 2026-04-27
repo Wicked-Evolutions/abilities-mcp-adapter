@@ -301,6 +301,13 @@ final class AuthorizationServer {
 		}
 
 		if ( ! $auth_header || ! str_starts_with( $auth_header, 'Bearer ' ) ) {
+			// C-3: RFC 6750 §3 — every 401 from the protected resource must carry a
+			// WWW-Authenticate challenge so standards-compliant clients can discover
+			// the protected-resource metadata URL. When no Authorization header is
+			// present we can't attach an error/error_description (there's no token
+			// to reject), so emit the bare realm+resource_metadata challenge only.
+			// We're already past the oauth_is_mcp_resource_request() guard above.
+			self::schedule_www_authenticate( '', '' );
 			return $user_id;
 		}
 
@@ -320,7 +327,8 @@ final class AuthorizationServer {
 		}
 
 		if ( $row->revoked ) {
-			self::schedule_www_authenticate( 'invalid_token', 'The access token has been revoked.' );
+			// H-1: identical error_description for revoked vs invalid/expired — no differential.
+			self::schedule_www_authenticate( 'invalid_token', 'The access token is invalid.' );
 			\oauth_log_boundary( 'boundary.oauth_invalid_token', [ 'client_id' => $row->client_id, 'reason' => 'revoked' ] );
 			return $user_id;
 		}
@@ -365,18 +373,31 @@ final class AuthorizationServer {
 
 	/**
 	 * Schedule a WWW-Authenticate header for the next response.
+	 *
+	 * When $error_code is empty (C-3 bare challenge — no token presented),
+	 * only realm and resource_metadata are emitted; RFC 6750 §3 forbids
+	 * error/error_description on a bare challenge (they require a token attempt).
+	 *
 	 * Uses rest_post_dispatch to add the header after WP REST routing completes.
 	 */
 	private static function schedule_www_authenticate( string $error_code, string $description ): void {
 		add_filter( 'rest_post_dispatch', static function ( $result ) use ( $error_code, $description ) {
-			$issuer  = function_exists( 'home_url' ) ? home_url() : '';
+			$issuer   = function_exists( 'home_url' ) ? home_url() : '';
 			$meta_url = $issuer . '/.well-known/oauth-protected-resource';
-			header( sprintf(
-				'WWW-Authenticate: Bearer realm="abilities-mcp", resource_metadata="%s", error="%s", error_description="%s"',
-				esc_attr( $meta_url ),
-				esc_attr( $error_code ),
-				esc_attr( $description )
-			) );
+			if ( $error_code === '' ) {
+				// Bare challenge (C-3): no token was presented.
+				header( sprintf(
+					'WWW-Authenticate: Bearer realm="abilities-mcp", resource_metadata="%s"',
+					esc_attr( $meta_url )
+				) );
+			} else {
+				header( sprintf(
+					'WWW-Authenticate: Bearer realm="abilities-mcp", resource_metadata="%s", error="%s", error_description="%s"',
+					esc_attr( $meta_url ),
+					esc_attr( $error_code ),
+					esc_attr( $description )
+				) );
+			}
 			return $result;
 		}, 10 );
 	}

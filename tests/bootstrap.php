@@ -352,6 +352,7 @@ if ( ! function_exists( 'wp_cache_delete' ) ) {
 if ( ! class_exists( 'WP_REST_Request' ) ) {
 	class WP_REST_Request {
 		private array $headers = array();
+		private array $params  = array();
 
 		public function set_header( string $name, string $value ): void {
 			$this->headers[ strtolower( $name ) ] = $value;
@@ -366,6 +367,16 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
 		 */
 		public function get_header( $name ) {
 			return $this->headers[ strtolower( (string) $name ) ] ?? null;
+		}
+
+		/** Set a query/body parameter for testing. */
+		public function set_param( string $name, $value ): void {
+			$this->params[ $name ] = $value;
+		}
+
+		/** Mirrors WP_REST_Request::get_params. */
+		public function get_params(): array {
+			return $this->params;
 		}
 	}
 }
@@ -697,6 +708,53 @@ if ( ! function_exists( 'get_userdata' ) ) {
 		$obj->display_name  = (string) ( $user['display_name'] ?? $obj->user_login );
 		$obj->roles         = (array)  ( $user['roles']        ?? array() );
 		return $obj;
+	}
+}
+
+// ---- Token endpoint response sentinels ----
+//
+// token_success() and token_error() in the real helpers call exit after emitting
+// output, which would kill the test process. We define sentinel-throwing versions
+// here before helpers.php loads; the function_exists() guards in helpers.php will
+// leave these stubs in place for all unit tests.
+//
+// Tests that need to assert on the response body can catch the sentinel and inspect
+// its properties. Tests that only care about side-effects (DB writes, rate-limit
+// transients) can let the sentinel propagate — PHPUnit will report an unexpected
+// exception, so tests must catch it explicitly.
+
+if ( ! class_exists( 'WickedEvolutions_McpAdapter_Tests_TokenResponseSentinel' ) ) {
+	class WickedEvolutions_McpAdapter_Tests_TokenResponseSentinel extends \RuntimeException {
+		public array  $body    = array();
+		public int    $status  = 200;
+		public string $context = '';
+
+		public function __construct( array $body, int $status, string $context ) {
+			$this->body    = $body;
+			$this->status  = $status;
+			$this->context = $context;
+			parent::__construct( 'Token endpoint response: ' . $context . ' HTTP ' . $status );
+		}
+	}
+	class_alias(
+		'WickedEvolutions_McpAdapter_Tests_TokenResponseSentinel',
+		'WickedEvolutions\\McpAdapter\\Tests\\TokenResponseSentinel'
+	);
+}
+
+if ( ! function_exists( 'token_success' ) ) {
+	function token_success( array $body, int $status = 200 ): never {
+		throw new \WickedEvolutions\McpAdapter\Tests\TokenResponseSentinel( $body, $status, 'success' );
+	}
+}
+
+if ( ! function_exists( 'token_error' ) ) {
+	function token_error( string $error, string $description, int $status = 400 ): never {
+		throw new \WickedEvolutions\McpAdapter\Tests\TokenResponseSentinel(
+			array( 'error' => $error, 'error_description' => $description ),
+			$status,
+			'error'
+		);
 	}
 }
 
