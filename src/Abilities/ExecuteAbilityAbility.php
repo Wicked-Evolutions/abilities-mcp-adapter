@@ -13,6 +13,8 @@ declare( strict_types=1 );
 
 namespace WickedEvolutions\McpAdapter\Abilities;
 
+use WickedEvolutions\McpAdapter\Auth\OAuth\OAuthScopeEnforcer;
+
 /**
  * Execute Ability - Executes a WordPress ability with provided parameters.
  *
@@ -74,9 +76,15 @@ final class ExecuteAbilityAbility {
 				'execute_callback'    => array( self::class, 'execute' ),
 				'meta'                => array(
 					'annotations' => array(
+						// MCP-level destructive annotation kept for client safety: this
+						// dispatcher CAN run destructive abilities via its `ability_name`
+						// argument. Authorization weight lives on the inner per-underlying
+						// scope check (#39, #42, #45), not the dispatcher itself, so the
+						// OAuth scope mapping for *this* tool is `read`.
 						'readonly'    => false,
 						'destructive' => true,
 						'idempotent'  => false,
+						'permission'  => 'read',
 					),
 				),
 			)
@@ -198,6 +206,20 @@ final class ExecuteAbilityAbility {
 			return array(
 				'success' => false,
 				'error'   => "Ability '{$ability_name}' not found",
+			);
+		}
+
+		// OAuth scope gate at the per-underlying dispatch (#39, #45). The outer
+		// tools/call gate only sees `mcp-adapter/execute-ability`; without this
+		// inner check, a token with `abilities:mcp-adapter:read` could dispatch
+		// any underlying ability the WP user has caps for, bypassing scope.
+		$scope_denial = OAuthScopeEnforcer::check( $ability );
+		if ( null !== $scope_denial ) {
+			return array(
+				'success'        => false,
+				'error'          => $scope_denial['message'],
+				'error_code'     => $scope_denial['error_code'],
+				'required_scope' => $scope_denial['required_scope'],
 			);
 		}
 

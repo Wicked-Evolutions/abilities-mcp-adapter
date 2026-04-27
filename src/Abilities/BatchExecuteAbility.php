@@ -68,9 +68,15 @@ final class BatchExecuteAbility {
 				'execute_callback'    => array( self::class, 'execute' ),
 				'meta'                => array(
 					'annotations' => array(
+						// MCP-level destructive annotation kept for client safety: this
+						// dispatcher CAN run destructive tools via its `requests` argument.
+						// Authorization weight lives on the inner per-tool scope check
+						// (run by `ToolsHandler::handle_tool_call` for each request), so
+						// the OAuth scope mapping for *this* tool is `read` (#42, #45).
 						'readonly'    => false,
 						'destructive' => true,
 						'idempotent'  => false,
+						'permission'  => 'read',
 					),
 				),
 			)

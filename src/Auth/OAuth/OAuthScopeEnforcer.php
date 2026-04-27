@@ -8,9 +8,11 @@
  * but never wired a consumer that gates ability execution against the granted
  * scope set. This class is that consumer.
  *
- * The gate runs at exactly one location — `ToolsHandler::handle_tool_call` —
- * before `$ability->execute( $args )` fires. Non-OAuth requests pass through
- * unchanged (WP capabilities govern; the gate becomes a no-op).
+ * The gate runs at every dispatch path that can lead to `$ability->execute()`:
+ * `ToolsHandler::handle_tool_call`, `ResourcesHandler::read_resource`,
+ * `PromptsHandler::get_prompt`, and the `mcp-adapter/execute-ability`
+ * meta-tool's per-underlying-ability dispatch (see issues #39, #40, #45).
+ * Non-OAuth requests pass through unchanged (WP capabilities govern).
  *
  * Scope mapping rule per issue #38 / Appendix A:
  *
@@ -70,12 +72,29 @@ final class OAuthScopeEnforcer {
 	 *                       'required_scope' => string ]`.
 	 */
 	public static function check( \WP_Ability $ability ): ?array {
+		return self::check_scope( self::required_scope_for( $ability ) );
+	}
+
+	/**
+	 * Gate the current OAuth request against an explicit required scope.
+	 *
+	 * Used by dispatch paths that do not have a `WP_Ability` to derive the
+	 * scope from — currently the builder-based prompts path in
+	 * `PromptsHandler::get_prompt` (see issue #45).
+	 *
+	 * Same allow/deny semantics as `check()`:
+	 * - Non-OAuth requests: returns null (allow).
+	 * - Direct match in the granted set: returns null.
+	 * - Non-sensitive scope covered by a granted umbrella: returns null.
+	 * - Sensitive scope or no match: emits `boundary.oauth_scope_denied` and
+	 *   returns the structured deny payload.
+	 */
+	public static function check_scope( string $required ): ?array {
 		if ( ! OAuthRequestContext::is_oauth_request() ) {
 			return null;
 		}
 
-		$required = self::required_scope_for( $ability );
-		$granted  = OAuthRequestContext::granted_scopes();
+		$granted = OAuthRequestContext::granted_scopes();
 
 		// Direct match — the required scope is explicitly in the granted set.
 		if ( in_array( $required, $granted, true ) ) {

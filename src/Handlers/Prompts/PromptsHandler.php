@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace WickedEvolutions\McpAdapter\Handlers\Prompts;
 
+use WickedEvolutions\McpAdapter\Auth\OAuth\OAuthScopeEnforcer;
 use WickedEvolutions\McpAdapter\Core\McpServer;
 use WickedEvolutions\McpAdapter\Handlers\HandlerHelperTrait;
 use WickedEvolutions\McpAdapter\Infrastructure\ErrorHandling\McpErrorFactory;
@@ -121,6 +122,31 @@ class PromptsHandler {
 					);
 				}
 
+				// OAuth scope gate (#45). Builder-based prompts bypass the abilities API
+				// so there is no category/permission to derive a scope from. Require the
+				// adapter-internal read scope as a baseline; per-builder permission
+				// callbacks remain authoritative on top of this.
+				$scope_denial = OAuthScopeEnforcer::check_scope( 'abilities:mcp-adapter:read' );
+				if ( null !== $scope_denial ) {
+					return array(
+						'error'     => array(
+							'code'    => McpErrorFactory::PERMISSION_DENIED,
+							'message' => $scope_denial['message'],
+							'data'    => array(
+								'error'          => $scope_denial['error_code'],
+								'required_scope' => $scope_denial['required_scope'],
+							),
+						),
+						'_metadata' => array(
+							'component_type' => 'prompt',
+							'prompt_name'    => $prompt_name,
+							'failure_reason' => 'insufficient_scope',
+							'error_code'     => $scope_denial['required_scope'],
+							'is_builder'     => true,
+						),
+					);
+				}
+
 				$result              = $prompt->execute_direct( $arguments );
 				$result['_metadata'] = array(
 					'component_type' => 'prompt',
@@ -186,6 +212,29 @@ class PromptsHandler {
 						'prompt_name'    => $prompt_name,
 						'ability_name'   => $ability->get_name(),
 						'failure_reason' => $failure_reason,
+						'is_builder'     => false,
+					),
+				);
+			}
+
+			// OAuth scope gate (#45). No-op for non-OAuth requests.
+			$scope_denial = OAuthScopeEnforcer::check( $ability );
+			if ( null !== $scope_denial ) {
+				return array(
+					'error'     => array(
+						'code'    => McpErrorFactory::PERMISSION_DENIED,
+						'message' => $scope_denial['message'],
+						'data'    => array(
+							'error'          => $scope_denial['error_code'],
+							'required_scope' => $scope_denial['required_scope'],
+						),
+					),
+					'_metadata' => array(
+						'component_type' => 'prompt',
+						'prompt_name'    => $prompt_name,
+						'ability_name'   => $ability->get_name(),
+						'failure_reason' => 'insufficient_scope',
+						'error_code'     => $scope_denial['required_scope'],
 						'is_builder'     => false,
 					),
 				);
