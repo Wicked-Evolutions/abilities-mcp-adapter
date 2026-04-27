@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace WickedEvolutions\McpAdapter\Handlers\Resources;
 
+use WickedEvolutions\McpAdapter\Auth\OAuth\OAuthScopeEnforcer;
 use WickedEvolutions\McpAdapter\Core\McpServer;
 use WickedEvolutions\McpAdapter\Handlers\HandlerHelperTrait;
 use WickedEvolutions\McpAdapter\Infrastructure\ErrorHandling\McpErrorFactory;
@@ -158,6 +159,29 @@ class ResourcesHandler {
 						'resource_name'  => $resource->get_name(),
 						'ability_name'   => $ability->get_name(),
 						'failure_reason' => $failure_reason,
+					),
+				);
+			}
+
+			// OAuth scope gate (H.1.3 / #45). No-op for non-OAuth requests.
+			$scope_denial = OAuthScopeEnforcer::check( $ability );
+			if ( null !== $scope_denial ) {
+				return array(
+					'error'     => array(
+						'code'    => McpErrorFactory::PERMISSION_DENIED,
+						'message' => $scope_denial['message'],
+						'data'    => array(
+							'error'          => $scope_denial['error_code'],
+							'required_scope' => $scope_denial['required_scope'],
+						),
+					),
+					'_metadata' => array(
+						'component_type' => 'resource',
+						'resource_uri'   => $uri,
+						'resource_name'  => $resource->get_name(),
+						'ability_name'   => $ability->get_name(),
+						'failure_reason' => 'insufficient_scope',
+						'error_code'     => $scope_denial['required_scope'],
 					),
 				);
 			}
