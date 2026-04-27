@@ -1,0 +1,267 @@
+/*
+ * Abilities MCP Adapter — admin stylesheet.
+ *
+ * Mirrors the design language of the Abilities for AI dashboard
+ * (admin/css/dashboard.css). Replaces the inline style="" attributes
+ * that previously lived on AbilitySettingsPage / SafetySettingsPage.
+ *
+ * Loaded only on the consolidated AdapterAdminPage.
+ *
+ * Copyright (C) 2026 Wicked Evolutions
+ * License: GPL-2.0-or-later
+ */
+
+/* --- Identity line under the H1 (matches abilities-for-ai .wp-abilities-subtitle) --- */
+.wp-mcp-adapter-subtitle {
+	font-size: 13px;
+	color: #646970;
+	margin: 0 0 16px;
+}
+
+/* --- Card primitive — re-used by license panel, master toggle, trusted proxy, diagnostics --- */
+.wp-mcp-adapter-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 16px;
+	max-width: 780px;
+	box-shadow: 0 1px 1px rgba( 0, 0, 0, .04 );
+	margin: 0 0 16px;
+}
+
+.wp-mcp-adapter-card--narrow {
+	max-width: 560px;
+	padding: 24px;
+	margin: 20px 0;
+}
+
+.wp-mcp-adapter-card-title {
+	font-size: 15px;
+	font-weight: 600;
+	margin: 0 0 14px;
+}
+
+/* --- Status pill (license active / inactive / no-license, diagnostic ok/warn) --- */
+.wp-mcp-adapter-status {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 14px;
+	font-size: 13px;
+}
+
+.wp-mcp-adapter-status-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	display: inline-block;
+}
+
+.wp-mcp-adapter-status-dot--ok      { background: #00a32a; }
+.wp-mcp-adapter-status-dot--err     { background: #d63638; }
+.wp-mcp-adapter-status-dot--warn    { background: #dba617; }
+.wp-mcp-adapter-status-dot--unknown { background: #c3c4c7; }
+
+.wp-mcp-adapter-status-label--ok      { color: #00a32a; }
+.wp-mcp-adapter-status-label--err     { color: #d63638; }
+.wp-mcp-adapter-status-label--warn    { color: #dba617; }
+
+/* --- Inline form rows (license activate, custom keyword add, key + button) --- */
+.wp-mcp-adapter-inline-row {
+	display: flex;
+	gap: 8px;
+	margin: 0 0 10px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.wp-mcp-adapter-inline-row .wp-mcp-adapter-input-grow {
+	flex: 1;
+	min-width: 240px;
+	padding: 6px 10px;
+	font-size: 13px;
+	border: 1px solid #8c8f94;
+	border-radius: 4px;
+	font-family: monospace;
+}
+
+.wp-mcp-adapter-inline-row .wp-mcp-adapter-input-grow[disabled] {
+	background: #f0f0f1;
+	color: #50575e;
+}
+
+/* --- Hint text under cards (license meta, "Bucket 1 hardcoded" etc.) --- */
+.wp-mcp-adapter-hint {
+	font-size: 12px;
+	color: #646970;
+	margin: 0;
+}
+
+.wp-mcp-adapter-hint--spaced {
+	margin-top: 6px;
+}
+
+.wp-mcp-adapter-hint .wp-mcp-adapter-hint-sep {
+	margin-left: 14px;
+}
+
+/* --- Master-toggle warning panel (Safety tab section 1) --- */
+.wp-mcp-adapter-master-toggle-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.wp-mcp-adapter-master-toggle-sub {
+	color: #646970;
+	font-size: 13px;
+}
+
+.wp-mcp-adapter-warning {
+	margin-top: 12px;
+	padding: 12px;
+	background: #fcf0f1;
+	border-left: 4px solid #d63638;
+}
+
+.wp-mcp-adapter-warning-title {
+	margin: 0 0 8px;
+	font-weight: 600;
+	color: #d63638;
+}
+
+.wp-mcp-adapter-warning p {
+	margin: 0 0 8px;
+	font-size: 13px;
+}
+
+.wp-mcp-adapter-warning-confirm {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+}
+
+.wp-mcp-adapter-is-hidden { display: none; }
+
+.wp-mcp-adapter-submit-row { margin-top: 12px; }
+
+/* --- Bucket 1 secrets list (Safety tab section 2) --- */
+.wp-mcp-adapter-secrets-list {
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 12px;
+	max-width: 780px;
+	font-family: monospace;
+	font-size: 12px;
+	line-height: 1.6;
+}
+
+.wp-mcp-adapter-section-spaced { margin-top: 24px; }
+
+/* --- Tables — keep stock .widefat .striped, just constrain width --- */
+.wp-mcp-adapter-table { max-width: 780px; }
+.wp-mcp-adapter-table th.wp-mcp-adapter-col-narrow   { width: 40px; }
+.wp-mcp-adapter-table th.wp-mcp-adapter-col-source   { width: 120px; }
+.wp-mcp-adapter-table th.wp-mcp-adapter-col-action   { width: 200px; }
+.wp-mcp-adapter-table th.wp-mcp-adapter-col-toggle   { width: 60px; }
+
+.wp-mcp-adapter-removed-row     { opacity: 0.55; }
+.wp-mcp-adapter-removed-keyword { text-decoration: line-through; }
+.wp-mcp-adapter-row-form        { margin: 0; }
+.wp-mcp-adapter-row-button      { padding: 1px 8px; }
+
+/* --- Add-keyword form inline layout --- */
+.wp-mcp-adapter-add-keyword-form {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	flex-wrap: wrap;
+	max-width: 780px;
+}
+
+.wp-mcp-adapter-add-keyword-form .wp-mcp-adapter-keyword-input {
+	flex: 1;
+	min-width: 240px;
+	padding: 6px 8px;
+	font-family: monospace;
+}
+
+.wp-mcp-adapter-restore-form { margin-top: 16px; }
+
+/* --- Per-ability exemptions two-column layout --- */
+.wp-mcp-adapter-exemptions-grid {
+	display: flex;
+	gap: 24px;
+	flex-wrap: wrap;
+	max-width: 1200px;
+}
+
+.wp-mcp-adapter-exemptions-col {
+	flex: 1;
+	min-width: 380px;
+}
+
+/* --- Trusted proxy fieldset --- */
+.wp-mcp-adapter-fieldset {
+	margin-top: 16px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 12px;
+}
+
+.wp-mcp-adapter-fieldset legend {
+	padding: 0 6px;
+	font-weight: 600;
+}
+
+.wp-mcp-adapter-radio-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.wp-mcp-adapter-radio-row--top {
+	align-items: flex-start;
+}
+
+.wp-mcp-adapter-radio-body { flex: 1; }
+
+.wp-mcp-adapter-radio-sub {
+	color: #646970;
+	font-size: 13px;
+}
+
+.wp-mcp-adapter-allowlist-textarea {
+	width: 100%;
+	font-family: monospace;
+	font-size: 12px;
+	margin-top: 6px;
+}
+
+.wp-mcp-adapter-rationale {
+	margin-top: 12px;
+	font-size: 12px;
+	color: #646970;
+}
+
+/* --- Connected Bridges placeholder + diagnostic --- */
+.wp-mcp-adapter-empty-state {
+	background: #f6f7f7;
+	border: 1px dashed #c3c4c7;
+	border-radius: 4px;
+	padding: 24px;
+	max-width: 780px;
+	color: #50575e;
+	font-size: 13px;
+	margin: 16px 0;
+}
+
+.wp-mcp-adapter-empty-state-title {
+	margin: 0 0 8px;
+	font-size: 14px;
+	font-weight: 600;
+	color: #1d2327;
+}

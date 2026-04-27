@@ -47,6 +47,7 @@ if ( file_exists( $autoloader ) ) {
 
 use WickedEvolutions\McpAdapter\Abilities\Settings\SettingsAbilities;
 use WickedEvolutions\McpAdapter\Admin\AbilitySettingsPage;
+use WickedEvolutions\McpAdapter\Admin\AdapterAdminPage;
 use WickedEvolutions\McpAdapter\Admin\SafetySettingsPage;
 use WickedEvolutions\McpAdapter\Auth\OAuth\AuthorizationServer;
 use WickedEvolutions\McpAdapter\Core\McpAdapter;
@@ -55,8 +56,10 @@ use WickedEvolutions\McpAdapter\RateLimit\TrustedProxyResolver;
 // Boot OAuth 2.1 authorization server (DB migration, route interception, bearer auth).
 AuthorizationServer::boot();
 
-// Register admin settings pages (license + ability permissions + safety settings).
+// Register the consolidated admin page (Settings → Abilities MCP Adapter)
+// and the legacy 301 redirectors that keep old bookmarks working.
 if ( is_admin() ) {
+	AdapterAdminPage::register();
 	AbilitySettingsPage::register();
 	SafetySettingsPage::register();
 }

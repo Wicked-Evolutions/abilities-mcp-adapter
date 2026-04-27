@@ -492,6 +492,140 @@ if ( ! function_exists( 'absint' ) ) {
 	}
 }
 
+// ---- Admin-page stubs (Phase 2 UI consolidation) ----
+
+if ( ! isset( $GLOBALS['wp_test_redirect'] ) ) {
+	$GLOBALS['wp_test_redirect'] = null;
+}
+
+if ( ! function_exists( 'add_query_arg' ) ) {
+	function add_query_arg( $args, $url = '' ) {
+		// Two-arg form: array of args + base URL.
+		$query = parse_url( $url, PHP_URL_QUERY );
+		$existing = array();
+		if ( $query ) {
+			parse_str( $query, $existing );
+		}
+		$merged = array_merge( $existing, (array) $args );
+		$base   = strtok( $url, '?' );
+		return $base . ( empty( $merged ) ? '' : '?' . http_build_query( $merged ) );
+	}
+}
+
+if ( ! function_exists( 'admin_url' ) ) {
+	function admin_url( $path = '' ) {
+		return ( $GLOBALS['wp_test_admin_url'] ?? 'https://example.com/wp-admin/' ) . ltrim( (string) $path, '/' );
+	}
+}
+
+if ( ! function_exists( 'network_admin_url' ) ) {
+	function network_admin_url( $path = '' ) {
+		return ( $GLOBALS['wp_test_network_admin_url'] ?? 'https://example.com/wp-admin/network/' ) . ltrim( (string) $path, '/' );
+	}
+}
+
+if ( ! function_exists( 'is_network_admin' ) ) {
+	function is_network_admin() {
+		return ! empty( $GLOBALS['wp_test_is_network_admin'] );
+	}
+}
+
+if ( ! class_exists( 'WickedEvolutions\\McpAdapter\\Tests\\RedirectException' ) ) {
+	// Sentinel — production code calls `exit;` after wp_safe_redirect(); by
+	// throwing here we capture the redirect target and unwind the stack
+	// before `exit;` executes. Tests catch this via expectException().
+	class WickedEvolutions_McpAdapter_Tests_RedirectException extends \RuntimeException {}
+	class_alias(
+		'WickedEvolutions_McpAdapter_Tests_RedirectException',
+		'WickedEvolutions\\McpAdapter\\Tests\\RedirectException'
+	);
+}
+
+if ( ! function_exists( 'wp_safe_redirect' ) ) {
+	function wp_safe_redirect( $location, $status = 302 ) {
+		$GLOBALS['wp_test_redirect'] = array(
+			'location' => (string) $location,
+			'status'   => (int) $status,
+		);
+		throw new \WickedEvolutions\McpAdapter\Tests\RedirectException( (string) $location );
+	}
+}
+
+if ( ! function_exists( 'add_menu_page' ) ) {
+	function add_menu_page( $page_title, $menu_title, $capability, $menu_slug, $callback = '', $icon = '', $position = null ) {
+		$GLOBALS['wp_test_menu_pages'][] = compact( 'page_title', 'menu_title', 'capability', 'menu_slug', 'callback', 'icon', 'position' );
+		return $menu_slug;
+	}
+}
+
+if ( ! function_exists( 'esc_attr' ) ) {
+	function esc_attr( $text ) {
+		return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+	}
+}
+
+if ( ! function_exists( 'esc_url' ) ) {
+	function esc_url( $url ) {
+		return htmlspecialchars( (string) $url, ENT_QUOTES, 'UTF-8' );
+	}
+}
+
+if ( ! function_exists( 'esc_html_e' ) ) {
+	function esc_html_e( $text, $domain = 'default' ) {
+		echo htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+	}
+}
+
+if ( ! function_exists( 'esc_attr_e' ) ) {
+	function esc_attr_e( $text, $domain = 'default' ) {
+		echo htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+	}
+}
+
+if ( ! function_exists( 'esc_textarea' ) ) {
+	function esc_textarea( $text ) {
+		return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+	}
+}
+
+if ( ! function_exists( 'esc_js' ) ) {
+	function esc_js( $text ) {
+		return addslashes( (string) $text );
+	}
+}
+
+if ( ! function_exists( 'wp_nonce_field' ) ) {
+	function wp_nonce_field( $action = -1, $name = '_wpnonce', $referer = true, $echo = true ) {
+		$out = '<input type="hidden" name="' . htmlspecialchars( (string) $name ) . '" value="test-nonce" />';
+		if ( $echo ) {
+			echo $out;
+		}
+		return $out;
+	}
+}
+
+if ( ! function_exists( 'submit_button' ) ) {
+	function submit_button( $text = null, $type = 'primary', $name = 'submit', $wrap = true, $other = null ) {
+		echo '<input type="submit" value="' . htmlspecialchars( (string) $text ) . '" />';
+	}
+}
+
+if ( ! function_exists( 'settings_errors' ) ) {
+	function settings_errors( $setting = '', $sanitize = false, $hide_on_update = false ) {
+		// No-op in test environment.
+	}
+}
+
+if ( ! function_exists( 'checked' ) ) {
+	function checked( $checked, $current = true, $echo = true ) {
+		$result = (string) $checked === (string) $current ? ' checked="checked"' : '';
+		if ( $echo ) {
+			echo $result;
+		}
+		return $result;
+	}
+}
+
 // Autoload global OAuth helpers from AuthorizationServer.php so all tests can call them.
 // The file guards each function with if(!function_exists(...)) so it's safe to require here.
 require_once dirname( __DIR__ ) . '/src/Auth/OAuth/AuthorizationServer.php';
