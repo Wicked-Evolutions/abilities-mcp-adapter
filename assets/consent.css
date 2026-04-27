@@ -1,0 +1,256 @@
+/*
+ * Abilities MCP Adapter — consent screen stylesheet.
+ *
+ * Loaded ONLY by the public /oauth/authorize page (the consent screen).
+ * Mirrors the design language of the Abilities for AI plugin admin UI
+ * (the Phase 2 admin.css primitives) but is self-contained so the consent
+ * page can render without any WP admin context.
+ *
+ * No JavaScript on the consent page. All sensitive interactions are pure
+ * server-rendered HTML form submission, per Appendix H.4.5.
+ *
+ * Copyright (C) 2026 Wicked Evolutions
+ * License: GPL-2.0-or-later
+ */
+
+* { box-sizing: border-box; }
+
+.wp-mcp-consent-body {
+	margin: 0;
+	padding: 32px 16px;
+	background: #f0f0f1;
+	color: #1d2327;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.wp-mcp-consent-shell {
+	max-width: 640px;
+	margin: 0 auto;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 6px;
+	padding: 32px;
+	box-shadow: 0 1px 3px rgba( 0, 0, 0, .08 );
+}
+
+.wp-mcp-consent-shell--error {
+	border-color: #d63638;
+}
+
+.wp-mcp-consent-header {
+	margin-bottom: 24px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.wp-mcp-consent-h1 {
+	font-size: 22px;
+	font-weight: 600;
+	margin: 0 0 6px;
+	color: #1d2327;
+}
+
+.wp-mcp-consent-h2 {
+	font-size: 15px;
+	font-weight: 600;
+	margin: 24px 0 12px;
+	color: #1d2327;
+}
+
+.wp-mcp-consent-site {
+	margin: 0;
+	font-size: 13px;
+	color: #50575e;
+}
+
+.wp-mcp-consent-site-url {
+	display: block;
+	color: #646970;
+	font-family: monospace;
+	font-size: 12px;
+	margin-top: 2px;
+}
+
+.wp-mcp-consent-notice {
+	padding: 12px 16px;
+	border-left: 4px solid #2271b1;
+	background: #f0f6fc;
+	margin: 0 0 20px;
+	font-size: 13px;
+}
+
+.wp-mcp-consent-notice--reauth {
+	border-left-color: #dba617;
+	background: #fcf9e8;
+}
+
+.wp-mcp-consent-notice--incremental {
+	border-left-color: #2271b1;
+	background: #f0f6fc;
+}
+
+.wp-mcp-consent-form { margin: 0; }
+
+.wp-mcp-consent-identity {
+	margin: 0 0 16px;
+}
+
+.wp-mcp-consent-user {
+	margin: 0 0 12px;
+	font-size: 14px;
+}
+
+.wp-mcp-consent-user-login {
+	color: #646970;
+	font-size: 13px;
+	margin-left: 4px;
+}
+
+.wp-mcp-consent-label {
+	display: block;
+	font-weight: 600;
+	font-size: 13px;
+	margin-top: 12px;
+}
+
+.wp-mcp-consent-select {
+	margin-top: 4px;
+	padding: 6px 10px;
+	font-size: 14px;
+	border: 1px solid #8c8f94;
+	border-radius: 4px;
+	min-width: 200px;
+}
+
+.wp-mcp-consent-hint {
+	margin: 4px 0 0;
+	font-size: 12px;
+	color: #646970;
+}
+
+.wp-mcp-consent-scopes { margin: 0 0 24px; }
+
+.wp-mcp-consent-group {
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 12px 16px;
+	margin: 0 0 12px;
+}
+
+.wp-mcp-consent-group--sensitive {
+	border-color: #d63638;
+	background: #fcf0f1;
+}
+
+.wp-mcp-consent-legend {
+	font-weight: 600;
+	font-size: 13px;
+	padding: 0 6px;
+	color: #1d2327;
+}
+
+.wp-mcp-consent-lock {
+	margin-left: 4px;
+}
+
+.wp-mcp-consent-scope {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 6px 0;
+	font-size: 13px;
+	flex-wrap: wrap;
+}
+
+.wp-mcp-consent-scope input[type="checkbox"] {
+	margin: 0;
+}
+
+.wp-mcp-consent-scope-name {
+	font-family: monospace;
+	font-size: 12px;
+	background: #f6f7f7;
+	padding: 1px 6px;
+	border-radius: 2px;
+	color: #1d2327;
+}
+
+.wp-mcp-consent-scope--sensitive .wp-mcp-consent-scope-name {
+	background: #fcf0f1;
+	color: #d63638;
+}
+
+.wp-mcp-consent-badge {
+	display: inline-block;
+	font-size: 11px;
+	padding: 1px 8px;
+	border-radius: 10px;
+	background: #f6f7f7;
+	color: #50575e;
+}
+
+.wp-mcp-consent-badge--granted {
+	background: #edfaef;
+	color: #00a32a;
+}
+
+.wp-mcp-consent-badge--sensitive {
+	background: #fcf0f1;
+	color: #d63638;
+	font-weight: 600;
+}
+
+.wp-mcp-consent-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 12px;
+	margin: 24px 0 0;
+	padding-top: 16px;
+	border-top: 1px solid #dcdcde;
+}
+
+.wp-mcp-consent-button {
+	font-size: 14px;
+	padding: 8px 18px;
+	border-radius: 4px;
+	border: 1px solid #2271b1;
+	cursor: pointer;
+	font-weight: 500;
+}
+
+.wp-mcp-consent-button--primary {
+	background: #2271b1;
+	color: #fff;
+}
+
+.wp-mcp-consent-button--primary:hover {
+	background: #135e96;
+	border-color: #135e96;
+}
+
+.wp-mcp-consent-button--secondary {
+	background: #fff;
+	color: #2271b1;
+}
+
+.wp-mcp-consent-button--secondary:hover {
+	background: #f6f7f7;
+}
+
+.wp-mcp-consent-footer {
+	margin-top: 16px;
+}
+
+.wp-mcp-consent-footer-text {
+	margin: 0;
+	font-size: 12px;
+	color: #646970;
+}
+
+.wp-mcp-consent-error {
+	color: #d63638;
+	font-size: 14px;
+	margin: 0 0 12px;
+}

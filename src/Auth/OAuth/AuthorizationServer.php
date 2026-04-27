@@ -28,6 +28,9 @@ declare( strict_types=1 );
 
 namespace WickedEvolutions\McpAdapter\Auth\OAuth;
 
+use WickedEvolutions\McpAdapter\Admin\Bridges\AuthHeaderProbe;
+use WickedEvolutions\McpAdapter\Admin\Bridges\BoundaryAuditBuffer;
+use WickedEvolutions\McpAdapter\Auth\OAuth\Endpoints\AuthorizeEndpoint;
 use WickedEvolutions\McpAdapter\Auth\OAuth\Endpoints\RegisterEndpoint;
 use WickedEvolutions\McpAdapter\Auth\OAuth\Endpoints\TokenEndpoint;
 use WickedEvolutions\McpAdapter\Auth\OAuth\Endpoints\RevokeEndpoint;
@@ -66,6 +69,12 @@ final class AuthorizationServer {
 
 		// Reset OAuthRequestContext at the start of each REST request.
 		add_action( 'rest_api_init', [ OAuthRequestContext::class, 'reset' ], 1 );
+
+		// Phase 3: capture OAuth boundary events for the Connected Bridges audit slice.
+		BoundaryAuditBuffer::register();
+
+		// Phase 3: provide a data source for the H.2.6 Authorization-header diagnostic.
+		AuthHeaderProbe::register();
 	}
 
 	/** Run DB migration if schema version has changed. */
@@ -179,7 +188,7 @@ final class AuthorizationServer {
 			'/.well-known/oauth-protected-resource'  => DiscoveryEndpoints::serve_protected_resource(),
 			'/.well-known/oauth-authorization-server'=> DiscoveryEndpoints::serve_authorization_server(),
 			'/.well-known/openid-configuration'      => DiscoveryEndpoints::serve_oidc_configuration(),
-			// /oauth/authorize handled by Phase 3.
+			'/oauth/authorize'                       => AuthorizeEndpoint::dispatch(),
 			default => null,
 		};
 	}
@@ -254,6 +263,15 @@ final class AuthorizationServer {
 		}
 
 		$auth_header = oauth_read_auth_header();
+
+		// Phase 3 (H.2.6): record header presence/absence for the diagnostic.
+		// Only count requests that actually look like MCP traffic so the rolling
+		// counter reflects bridge calls, not unrelated REST hits.
+		$path = (string) ( $_SERVER['REQUEST_URI'] ?? '' );
+		if ( str_contains( $path, '/wp-json/mcp/' ) || str_contains( $path, '/wp-json/abilities-mcp-adapter/' ) ) {
+			AuthHeaderProbe::record( null !== $auth_header && '' !== $auth_header );
+		}
+
 		if ( ! $auth_header || ! str_starts_with( $auth_header, 'Bearer ' ) ) {
 			return $user_id;
 		}

@@ -626,6 +626,80 @@ if ( ! function_exists( 'checked' ) ) {
 	}
 }
 
+// ---- Phase 3 stubs ----
+
+// Minimal $wpdb stub for tests that touch DB-fronting classes (ClientRegistry::list_active(),
+// PriorGrantLookup, ConnectedBridgesTab::latest_token_for, etc.). Tests that need DB fixtures
+// can swap individual methods on $GLOBALS['wpdb'] before invoking the unit under test.
+if ( ! isset( $GLOBALS['wpdb'] ) ) {
+	$GLOBALS['wpdb'] = new class {
+		public string $prefix = 'wp_';
+
+		/** Stored last-prepared query, for tests that want to assert against it. */
+		public string $last_prepared = '';
+
+		/** Default empty results — tests can override per-instance. */
+		public function get_results( $query ) { return array(); }
+		public function get_row( $query )     { return null; }
+		public function get_var( $query )     { return null; }
+		public function prepare( $query, ...$args ) {
+			$this->last_prepared = (string) $query;
+			return $query;
+		}
+		public function insert( $table, $data, $format = null ) { return 1; }
+		public function update( $table, $data, $where, $format = null, $where_format = null ) { return 1; }
+		public function query( $sql ) { return true; }
+	};
+}
+
+
+if ( ! function_exists( '_n' ) ) {
+	function _n( $single, $plural, $number, $domain = 'default' ) {
+		return ( (int) $number === 1 ) ? $single : $plural;
+	}
+}
+
+if ( ! function_exists( 'wp_login_url' ) ) {
+	function wp_login_url( $redirect_to = '' ) {
+		$base = ( $GLOBALS['wp_test_home_url'] ?? 'https://example.com' ) . '/wp-login.php';
+		return '' === $redirect_to ? $base : $base . '?redirect_to=' . rawurlencode( $redirect_to );
+	}
+}
+
+if ( ! function_exists( 'wp_verify_nonce' ) ) {
+	function wp_verify_nonce( $nonce, $action = -1 ) {
+		// In tests, the nonce stub from wp_nonce_field() always emits 'test-nonce'.
+		return 'test-nonce' === $nonce ? 1 : false;
+	}
+}
+
+if ( ! function_exists( 'wp_date' ) ) {
+	function wp_date( $format, $timestamp = null, $timezone = null ) {
+		return gmdate( $format, $timestamp ?? time() );
+	}
+}
+
+if ( ! function_exists( 'get_bloginfo' ) ) {
+	function get_bloginfo( $show = '' ) {
+		return $GLOBALS['wp_test_bloginfo'][ $show ] ?? 'Test Site';
+	}
+}
+
+if ( ! function_exists( 'get_userdata' ) ) {
+	function get_userdata( $user_id ) {
+		$user = $GLOBALS['wp_test_users'][ (int) $user_id ] ?? null;
+		if ( ! $user ) {
+			return false;
+		}
+		$obj = new stdClass();
+		$obj->ID            = (int) $user_id;
+		$obj->user_login    = (string) ( $user['user_login']   ?? 'user_' . $user_id );
+		$obj->display_name  = (string) ( $user['display_name'] ?? $obj->user_login );
+		$obj->roles         = (array)  ( $user['roles']        ?? array() );
+		return $obj;
+	}
+}
+
 // Autoload global OAuth helpers from AuthorizationServer.php so all tests can call them.
 // The file guards each function with if(!function_exists(...)) so it's safe to require here.
 require_once dirname( __DIR__ ) . '/src/Auth/OAuth/AuthorizationServer.php';

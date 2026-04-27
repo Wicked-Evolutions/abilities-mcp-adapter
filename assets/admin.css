@@ -265,3 +265,44 @@
 	font-weight: 600;
 	color: #1d2327;
 }
+
+/* --- Connected Bridges table (Phase 3) --- */
+.wp-mcp-bridges-table { max-width: 1200px; }
+
+.wp-mcp-bridges-table th.wp-mcp-adapter-col-action { width: 90px; }
+
+.wp-mcp-bridges-scope-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: 12px;
+	line-height: 1.6;
+}
+
+.wp-mcp-bridges-scope-list li {
+	margin: 0;
+}
+
+.wp-mcp-bridges-scope-list code {
+	font-size: 11px;
+	background: #f6f7f7;
+	padding: 1px 6px;
+	border-radius: 2px;
+}
+
+.wp-mcp-bridges-warning {
+	color: #dba617;
+	margin-left: 6px;
+	font-size: 14px;
+	cursor: help;
+}
+
+/* --- Recent OAuth activity audit slice (Phase 3) --- */
+.wp-mcp-bridges-audit { max-width: 1200px; font-size: 12px; }
+
+.wp-mcp-bridges-audit code {
+	font-size: 11px;
+	background: #f6f7f7;
+	padding: 1px 6px;
+	border-radius: 2px;
+}
