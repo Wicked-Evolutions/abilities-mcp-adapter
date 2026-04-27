@@ -197,7 +197,15 @@ final class AuthorizationServer {
 	}
 
 	private static function is_well_known_or_oauth_path(): bool {
-		$path = strtok( $_SERVER['REQUEST_URI'] ?? '', '?' );
+		$uri = $_SERVER['REQUEST_URI'] ?? '';
+		if ( ! is_string( $uri ) || $uri === '' ) {
+			return false;
+		}
+		// strtok( '', '?' ) returns false on PHP 8.2+; guard with explicit string check above.
+		$path = strtok( $uri, '?' );
+		if ( ! is_string( $path ) ) {
+			return false;
+		}
 		return str_starts_with( $path, '/.well-known/' ) || str_starts_with( $path, '/oauth/' );
 	}
 
