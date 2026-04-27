@@ -105,13 +105,9 @@ final class TokenEndpoint {
 			\token_error( 'invalid_grant', 'Refresh token is invalid, expired, or has been revoked.', 400 );
 		}
 
-		if ( isset( $result['__idempotent_retry__'] ) ) {
-			// Within 30-second grace — we can't return the original plaintext (hashed).
-			// Return an error that tells the bridge to wait and retry — it still has the token.
-			// In practice the bridge should re-use the access token it already has.
-			\token_error( 'invalid_grant', 'Refresh already rotated. Use current access token or retry after grace window.', 400 );
-		}
-
+		// Both initial rotation and idempotent retry-within-grace return the
+		// same shape — the retry path returns the original plaintext pair from
+		// the encrypted replay blob (C-2). No special-case handling needed.
 		\oauth_log_boundary( 'boundary.oauth_token_refreshed', [ 'client_id' => $client_id ] );
 
 		\token_success( $result );

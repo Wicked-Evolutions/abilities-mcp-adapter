@@ -108,28 +108,29 @@ final class TokenStoreRotationFamilyTest extends TestCase {
 		$result = TokenStore::rotate( $plaintext_token, 'cl_test' );
 
 		$this->assertNotNull( $result, 'rotate() must succeed' );
-		$this->assertNotSame( '__idempotent_retry__', array_key_first( $result ) );
+		$this->assertArrayHasKey( 'access_token', $result, 'rotate() returns the standard token-pair shape (post-C-2)' );
 		$this->assertSame( $parent_family, $captured->family_id, 'rotate() must pass parent family_id into issue()' );
 	}
 
 	/**
-	 * Rotating the same token twice within the grace window returns the idempotent
-	 * response and must NOT generate a second new family_id.
+	 * A retry within the grace window without a stored replay blob (e.g. a row
+	 * created before the C-2 schema upgrade, or an already-consumed retry)
+	 * resolves to invalid_grant — never generates a new family_id.
+	 *
+	 * Full plaintext-replay coverage lives in TokenStoreReplayBlobTest (C-2).
 	 */
-	public function test_idempotent_retry_does_not_change_family_id(): void {
+	public function test_grace_retry_without_blob_returns_null(): void {
 		$parent_family   = 'deadbeefcafe00112233445566778899';
 		$plaintext_token = bin2hex( random_bytes( 32 ) );
 		$token_hash      = hash( 'sha256', $plaintext_token );
 
-		// Simulate a token that was already rotated 5 seconds ago (within 30s grace).
+		// Simulate a token that was already rotated 5 seconds ago (within 30s grace),
+		// but with no replay blob recorded (legacy row).
 		$GLOBALS['wpdb'] = $this->make_already_rotated_wpdb( $token_hash, $parent_family, rotated_age: 5 );
 
 		$result = TokenStore::rotate( $plaintext_token, 'cl_test' );
 
-		$this->assertNotNull( $result );
-		$this->assertArrayHasKey( '__idempotent_retry__', $result, 'Must return idempotent-retry sentinel' );
-		// No new issue() call is made, so family_id is untouched — the assertion is
-		// that we reached here without null-pointer / type errors.
+		$this->assertNull( $result, 'No blob → null (invalid_grant); no new issue() and no new family_id' );
 	}
 
 	/**
