@@ -14,6 +14,7 @@ declare( strict_types=1 );
 namespace WickedEvolutions\McpAdapter\Handlers\Tools;
 
 use WickedEvolutions\McpAdapter\Admin\PermissionManager;
+use WickedEvolutions\McpAdapter\Auth\OAuth\OAuthScopeEnforcer;
 use WickedEvolutions\McpAdapter\Core\McpServer;
 use WickedEvolutions\McpAdapter\Domain\Tools\McpTool;
 use WickedEvolutions\McpAdapter\Handlers\HandlerHelperTrait;
@@ -415,6 +416,32 @@ class ToolsHandler {
 					'ability_name'   => $ability->get_name(),
 					'failure_reason' => 'permission_check_failed',
 					'error_type'     => get_class( $e ),
+					'input_schema'   => $ability->get_input_schema(),
+				),
+			);
+		}
+
+		// OAuth scope gate (H.1.3 / issue #38). Sole call site for scope enforcement.
+		// Returns null on non-OAuth requests (WP caps govern) or when the granted
+		// scope set covers the ability; otherwise returns a structured deny payload
+		// and the boundary event has already been emitted.
+		$scope_denial = OAuthScopeEnforcer::check( $ability );
+		if ( null !== $scope_denial ) {
+			return array(
+				'error'     => array(
+					'code'    => McpErrorFactory::PERMISSION_DENIED,
+					'message' => $scope_denial['message'],
+					'data'    => array(
+						'error'          => $scope_denial['error_code'],
+						'required_scope' => $scope_denial['required_scope'],
+					),
+				),
+				'_metadata' => array(
+					'component_type' => 'tool',
+					'tool_name'      => $tool_name,
+					'ability_name'   => $ability->get_name(),
+					'failure_reason' => 'insufficient_scope',
+					'error_code'     => $scope_denial['required_scope'],
 					'input_schema'   => $ability->get_input_schema(),
 				),
 			);
