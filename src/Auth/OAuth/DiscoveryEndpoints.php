@@ -30,7 +30,7 @@ final class DiscoveryEndpoints {
 	 * Validated against OAuthHostAllowlist before this is called.
 	 */
 	public static function issuer(): string {
-		$scheme = oauth_is_https() ? 'https' : 'http';
+		$scheme = \oauth_is_https() ? 'https' : 'http';
 		$host   = $_SERVER['HTTP_HOST'] ?? 'unknown';
 		// Strip port for issuer (issuer should not include port per RFC 8414 §2).
 		$host   = explode( ':', $host )[0];

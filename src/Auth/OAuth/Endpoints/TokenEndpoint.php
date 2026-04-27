@@ -41,7 +41,7 @@ final class TokenEndpoint {
 		match ( $grant_type ) {
 			'authorization_code' => self::handle_auth_code( $params ),
 			'refresh_token'      => self::handle_refresh( $params ),
-			default              => token_error( 'unsupported_grant_type', 'Only authorization_code and refresh_token are supported.', 400 ),
+			default              => \token_error( 'unsupported_grant_type', 'Only authorization_code and refresh_token are supported.', 400 ),
 		};
 	}
 
@@ -53,19 +53,19 @@ final class TokenEndpoint {
 		$code_verifier = $params['code_verifier'] ?? '';
 
 		if ( ! $code || ! $client_id || ! $redirect_uri || ! $code_verifier ) {
-			token_error( 'invalid_request', 'code, client_id, redirect_uri, and code_verifier are required.', 400 );
+			\token_error( 'invalid_request', 'code, client_id, redirect_uri, and code_verifier are required.', 400 );
 		}
 
 		// Verify client exists (invalid_client → 401).
 		$client = ClientRegistry::find( $client_id );
 		if ( ! $client ) {
-			token_error( 'invalid_client', 'Client not found or revoked.', 401 );
+			\token_error( 'invalid_client', 'Client not found or revoked.', 401 );
 		}
 
 		// Consume code: verifies PKCE + client_id + redirect_uri bindings (H.1.1).
 		$code_row = AuthorizationCodeStore::consume( $code, $client_id, $redirect_uri, $code_verifier );
 		if ( ! $code_row ) {
-			token_error( 'invalid_grant', 'Authorization code is invalid, expired, or already used.', 400 );
+			\token_error( 'invalid_grant', 'Authorization code is invalid, expired, or already used.', 400 );
 		}
 
 		// Issue token pair.
@@ -76,12 +76,12 @@ final class TokenEndpoint {
 			$code_row->resource
 		);
 
-		oauth_log_boundary( 'boundary.oauth_token_issued', [
+		\oauth_log_boundary( 'boundary.oauth_token_issued', [
 			'client_id' => $client_id,
 			'user_id'   => (int) $code_row->user_id,
 		] );
 
-		token_success( $token );
+		\token_success( $token );
 	}
 
 	/** refresh_token grant. */
@@ -90,30 +90,30 @@ final class TokenEndpoint {
 		$client_id     = sanitize_text_field( $params['client_id'] ?? '' );
 
 		if ( ! $refresh_token || ! $client_id ) {
-			token_error( 'invalid_request', 'refresh_token and client_id are required.', 400 );
+			\token_error( 'invalid_request', 'refresh_token and client_id are required.', 400 );
 		}
 
 		$client = ClientRegistry::find( $client_id );
 		if ( ! $client ) {
-			token_error( 'invalid_client', 'Client not found or revoked.', 401 );
+			\token_error( 'invalid_client', 'Client not found or revoked.', 401 );
 		}
 
 		$result = TokenStore::rotate( $refresh_token, $client_id );
 
 		if ( $result === null ) {
-			oauth_log_boundary( 'boundary.oauth_token_revoked', [ 'client_id' => $client_id, 'reason' => 'refresh_replay_or_invalid' ] );
-			token_error( 'invalid_grant', 'Refresh token is invalid, expired, or has been revoked.', 400 );
+			\oauth_log_boundary( 'boundary.oauth_token_revoked', [ 'client_id' => $client_id, 'reason' => 'refresh_replay_or_invalid' ] );
+			\token_error( 'invalid_grant', 'Refresh token is invalid, expired, or has been revoked.', 400 );
 		}
 
 		if ( isset( $result['__idempotent_retry__'] ) ) {
 			// Within 30-second grace — we can't return the original plaintext (hashed).
 			// Return an error that tells the bridge to wait and retry — it still has the token.
 			// In practice the bridge should re-use the access token it already has.
-			token_error( 'invalid_grant', 'Refresh already rotated. Use current access token or retry after grace window.', 400 );
+			\token_error( 'invalid_grant', 'Refresh already rotated. Use current access token or retry after grace window.', 400 );
 		}
 
-		oauth_log_boundary( 'boundary.oauth_token_refreshed', [ 'client_id' => $client_id ] );
+		\oauth_log_boundary( 'boundary.oauth_token_refreshed', [ 'client_id' => $client_id ] );
 
-		token_success( $result );
+		\token_success( $result );
 	}
 }

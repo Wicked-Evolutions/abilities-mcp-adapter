@@ -25,7 +25,7 @@ declare( strict_types=1 );
 
 namespace WickedEvolutions\McpAdapter\Admin\Tabs;
 
-use function WickedEvolutions\McpAdapter\Auth\OAuth\oauth_log_boundary;
+// oauth_log_boundary lives in the global namespace (src/Auth/OAuth/helpers.php).
 use WickedEvolutions\McpAdapter\Admin\AdapterAdminPage;
 use WickedEvolutions\McpAdapter\Admin\Bridges\BoundaryAuditBuffer;
 use WickedEvolutions\McpAdapter\Admin\Bridges\BridgeRowProjector;
@@ -321,7 +321,7 @@ final class ConnectedBridgesTab {
 
 		ClientRegistry::revoke( $client_id );
 
-		oauth_log_boundary( 'boundary.oauth_token_revoked', array(
+		\oauth_log_boundary( 'boundary.oauth_token_revoked', array(
 			'client_id' => $client_id,
 			'user_id'   => (int) get_current_user_id(),
 			'reason'    => 'admin_revoked',

@@ -40,7 +40,7 @@ final class RegisterEndpoint {
 	 * POST — register a new client.
 	 */
 	public static function handle_post( \WP_REST_Request $request ): never {
-		$ip = oauth_client_ip();
+		$ip = \oauth_client_ip();
 
 		// Rate limit check (H.3.3).
 		$check = RateLimiter::check_dcr( $ip );
@@ -105,7 +105,7 @@ final class RegisterEndpoint {
 
 		RateLimiter::record_dcr( $ip );
 
-		oauth_log_boundary( 'boundary.oauth_client_registered', [
+		\oauth_log_boundary( 'boundary.oauth_client_registered', [
 			'client_id'  => $client_id,
 			'ip'         => $ip,
 		] );

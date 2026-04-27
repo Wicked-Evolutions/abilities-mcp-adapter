@@ -40,10 +40,10 @@ final class RevokeEndpoint {
 
 		if ( $token ) {
 			TokenStore::revoke_by_plaintext( (string) $token );
-			oauth_log_boundary( 'boundary.oauth_token_revoked', [ 'reason' => 'explicit_revocation' ] );
+			\oauth_log_boundary( 'boundary.oauth_token_revoked', [ 'reason' => 'explicit_revocation' ] );
 		}
 
 		// RFC 7009: always 200, even when token not found.
-		token_success( [] );
+		\token_success( [] );
 	}
 }
