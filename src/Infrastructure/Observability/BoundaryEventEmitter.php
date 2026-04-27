@@ -70,6 +70,8 @@ final class BoundaryEventEmitter {
 		'redaction_count_b1',
 		'redaction_count_b2',
 		'redaction_count_b3',
+		// OAuth boundary events (H.4.3): metadata only, never token values or hashes.
+		'client_id',
 	);
 
 	/**
