@@ -711,6 +711,92 @@ if ( ! function_exists( 'get_userdata' ) ) {
 	}
 }
 
+// ---- WordPress constants (if not already defined by the test environment). ----
+if ( ! defined( 'DAY_IN_SECONDS' ) )  { define( 'DAY_IN_SECONDS',  86400 ); }
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+
+// ---- Multisite stubs ----
+
+if ( ! function_exists( 'is_multisite' ) ) {
+	function is_multisite() {
+		return ! empty( $GLOBALS['wp_test_is_multisite'] );
+	}
+}
+
+// site_transient stubs — backed by a separate in-memory store so they are
+// always independent of per-blog transients in tests.
+if ( ! isset( $GLOBALS['wp_test_site_transients'] ) ) {
+	$GLOBALS['wp_test_site_transients'] = array();
+}
+
+if ( ! function_exists( 'get_site_transient' ) ) {
+	function get_site_transient( $key ) {
+		$entry = $GLOBALS['wp_test_site_transients'][ $key ] ?? null;
+		if ( ! $entry ) {
+			return false;
+		}
+		if ( $entry['expires'] < time() ) {
+			unset( $GLOBALS['wp_test_site_transients'][ $key ] );
+			return false;
+		}
+		return $entry['value'];
+	}
+}
+
+if ( ! function_exists( 'set_site_transient' ) ) {
+	function set_site_transient( $key, $value, $ttl = 0 ) {
+		$GLOBALS['wp_test_site_transients'][ $key ] = array(
+			'value'   => $value,
+			'expires' => time() + (int) $ttl,
+		);
+		return true;
+	}
+}
+
+if ( ! function_exists( 'delete_site_transient' ) ) {
+	function delete_site_transient( $key ) {
+		unset( $GLOBALS['wp_test_site_transients'][ $key ] );
+		return true;
+	}
+}
+
+// wp_next_scheduled / wp_schedule_event / wp_unschedule_event stubs (cron tests).
+if ( ! isset( $GLOBALS['wp_test_cron'] ) ) {
+	$GLOBALS['wp_test_cron'] = array();
+}
+
+if ( ! function_exists( 'wp_next_scheduled' ) ) {
+	function wp_next_scheduled( $hook ) {
+		return $GLOBALS['wp_test_cron'][ $hook ] ?? false;
+	}
+}
+
+if ( ! function_exists( 'wp_schedule_event' ) ) {
+	function wp_schedule_event( $timestamp, $recurrence, $hook ) {
+		$GLOBALS['wp_test_cron'][ $hook ] = (int) $timestamp;
+		return true;
+	}
+}
+
+if ( ! function_exists( 'wp_unschedule_event' ) ) {
+	function wp_unschedule_event( $timestamp, $hook ) {
+		unset( $GLOBALS['wp_test_cron'][ $hook ] );
+		return true;
+	}
+}
+
+if ( ! function_exists( 'number_format' ) ) {
+	// PHP built-in — present in all environments; this guard is just documentation.
+	// No-op stub: number_format is always available.
+}
+
+if ( ! function_exists( 'update_option' ) ) {
+	function update_option( $option, $value, $autoload = null ) {
+		$GLOBALS['wp_test_options'][ $option ] = $value;
+		return true;
+	}
+}
+
 // ---- Token endpoint response sentinels ----
 //
 // token_success() and token_error() in the real helpers call exit after emitting

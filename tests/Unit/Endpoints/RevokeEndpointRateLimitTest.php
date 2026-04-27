@@ -5,6 +5,9 @@
  * Pre-fix: the revoke endpoint had no rate limit. Now enforced at
  * 20 req/min and 200 req/hr per IP via RateLimiter::check_revoke / record_revoke.
  *
+ * H-4: counters now live in site_transients (network-wide on multisite) or in
+ * the external object cache when available. Tests use wp_test_site_transients.
+ *
  * @package WickedEvolutions\McpAdapter\Tests\Unit\Endpoints
  */
 
@@ -23,14 +26,18 @@ final class RevokeEndpointRateLimitTest extends TestCase {
 
 	protected function setUp(): void {
 		parent::setUp();
-		$this->original_wpdb           = $GLOBALS['wpdb'];
-		$GLOBALS['wp_test_transients'] = array();
-		$_SERVER['REMOTE_ADDR']        = '10.1.2.3';
+		$this->original_wpdb                = $GLOBALS['wpdb'];
+		$GLOBALS['wp_test_site_transients'] = array();
+		$GLOBALS['wp_test_transients']      = array();
+		$_SERVER['REMOTE_ADDR']             = '10.1.2.3';
+		wp_using_ext_object_cache( false );
+		$GLOBALS['wp_test_object_cache'] = array();
 	}
 
 	protected function tearDown(): void {
-		$GLOBALS['wpdb']               = $this->original_wpdb;
-		$GLOBALS['wp_test_transients'] = array();
+		$GLOBALS['wpdb']                    = $this->original_wpdb;
+		$GLOBALS['wp_test_site_transients'] = array();
+		$GLOBALS['wp_test_transients']      = array();
 		unset( $_SERVER['REMOTE_ADDR'] );
 		parent::tearDown();
 	}
@@ -64,7 +71,6 @@ final class RevokeEndpointRateLimitTest extends TestCase {
 			RevokeEndpoint::handle_post( $req );
 			$this->fail( 'Expected TokenResponseSentinel' );
 		} catch ( TokenResponseSentinel $e ) {
-			// 200 success — rate limit not triggered.
 			$this->assertSame( 200, $e->status );
 			$this->assertNotSame( 'rate_limit_exceeded', $e->body['error'] ?? '' );
 		}
@@ -73,8 +79,7 @@ final class RevokeEndpointRateLimitTest extends TestCase {
 	public function test_rate_limit_enforced_when_per_minute_exceeded(): void {
 		$ip      = '10.1.2.3';
 		$key_min = 'abilities_oauth_rev_rpm_' . md5( $ip );
-		// Pre-saturate the per-minute counter at the limit.
-		set_transient( $key_min, 20, 60 );
+		set_site_transient( $key_min, 20, 60 );
 
 		$this->install_null_wpdb();
 		$req = $this->make_request( array() );
@@ -91,7 +96,7 @@ final class RevokeEndpointRateLimitTest extends TestCase {
 	public function test_rate_limit_enforced_when_per_hour_exceeded(): void {
 		$ip     = '10.1.2.3';
 		$key_hr = 'abilities_oauth_rev_rph_' . md5( $ip );
-		set_transient( $key_hr, 200, 3600 );
+		set_site_transient( $key_hr, 200, 3600 );
 
 		$this->install_null_wpdb();
 		$req = $this->make_request( array() );
@@ -120,8 +125,8 @@ final class RevokeEndpointRateLimitTest extends TestCase {
 			// ignored
 		}
 
-		$this->assertSame( 1, (int) get_transient( $key_min ) );
-		$this->assertSame( 1, (int) get_transient( $key_hr ) );
+		$this->assertSame( 1, (int) get_site_transient( $key_min ) );
+		$this->assertSame( 1, (int) get_site_transient( $key_hr ) );
 	}
 
 	/** RateLimiter check_revoke and record_revoke are independent of DCR counters. */
@@ -130,16 +135,16 @@ final class RevokeEndpointRateLimitTest extends TestCase {
 		$dcr_key_min = 'abilities_oauth_dcr_rpm_' . md5( $ip );
 		$rev_key_min = 'abilities_oauth_rev_rpm_' . md5( $ip );
 
-		// Saturate DCR limit.
-		set_transient( $dcr_key_min, 10, 60 );
+		// Saturate DCR limit via site_transient.
+		set_site_transient( $dcr_key_min, 10, 60 );
 
 		// Revoke check must still pass.
 		$this->assertTrue( RateLimiter::check_revoke( $ip ) === true );
 
 		// Record revoke — must only touch revoke keys.
 		RateLimiter::record_revoke( $ip );
-		$this->assertSame( 1, (int) get_transient( $rev_key_min ) );
+		$this->assertSame( 1, (int) get_site_transient( $rev_key_min ) );
 		// DCR minute counter must be unchanged.
-		$this->assertSame( 10, (int) get_transient( $dcr_key_min ) );
+		$this->assertSame( 10, (int) get_site_transient( $dcr_key_min ) );
 	}
 }
