@@ -47,21 +47,24 @@ final class TokenStore {
 	 * Scope is always returned — the stored set is umbrella-expanded so it
 	 * always differs from the umbrella strings the client originally requested.
 	 *
-	 * @param string $client_id
-	 * @param int    $user_id
-	 * @param string $scope     Space-separated scope string (umbrella-expanded).
-	 * @param string $resource  Resource indicator URL.
-	 * @param int    $access_ttl  Override access TTL (seconds).
-	 * @param int    $refresh_ttl Override refresh TTL (seconds).
+	 * @param string      $client_id
+	 * @param int         $user_id
+	 * @param string      $scope       Space-separated scope string (umbrella-expanded).
+	 * @param string      $resource    Resource indicator URL.
+	 * @param int         $access_ttl  Override access TTL (seconds).
+	 * @param int         $refresh_ttl Override refresh TTL (seconds).
+	 * @param string|null $family_id   Existing family ID to inherit (rotation path).
+	 *                                 Null generates a fresh family ID (initial issuance).
 	 * @return array{access_token: string, token_type: string, refresh_token: string, expires_in: int, scope: string}
 	 */
 	public static function issue(
-		string $client_id,
-		int    $user_id,
-		string $scope,
-		string $resource,
-		int    $access_ttl  = self::ACCESS_TTL,
-		int    $refresh_ttl = self::REFRESH_TTL
+		string  $client_id,
+		int     $user_id,
+		string  $scope,
+		string  $resource,
+		int     $access_ttl  = self::ACCESS_TTL,
+		int     $refresh_ttl = self::REFRESH_TTL,
+		?string $family_id   = null
 	): array {
 		global $wpdb;
 
@@ -69,7 +72,7 @@ final class TokenStore {
 		$refresh_token = bin2hex( random_bytes( 32 ) );
 		$access_hash   = hash( 'sha256', $access_token );
 		$refresh_hash  = hash( 'sha256', $refresh_token );
-		$family_id     = bin2hex( random_bytes( 16 ) );
+		$family_id     = $family_id ?? bin2hex( random_bytes( 16 ) );
 		$now           = gmdate( 'Y-m-d H:i:s' );
 
 		// Apply operator TTL filters.
@@ -197,8 +200,8 @@ final class TokenStore {
 			return null;
 		}
 
-		// Issue new pair.
-		$new_pair = self::issue( $row->client_id, (int) $row->user_id, $row->scope, $row->resource );
+		// Issue new pair — inherit family_id so replay detection covers the full chain (H.2.1).
+		$new_pair = self::issue( $row->client_id, (int) $row->user_id, $row->scope, $row->resource, self::ACCESS_TTL, self::REFRESH_TTL, $row->family_id );
 		$new_refresh_hash = hash( 'sha256', $new_pair['refresh_token'] );
 
 		// Mark old refresh as rotated (atomic update with condition).
