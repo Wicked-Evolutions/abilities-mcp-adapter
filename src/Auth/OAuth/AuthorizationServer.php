@@ -11,12 +11,13 @@
  *
  * Global helper functions defined here (in this file's namespace) to avoid
  * polluting plugin's primary namespace:
- *   \oauth_client_ip()       — trusted-proxy-aware client IP
- *   \oauth_is_https()        — scheme detection (H.2.5)
- *   \oauth_read_auth_header() — Authorization header recovery (H.2.6)
- *   \oauth_log_boundary()    — metadata-only boundary event (H.4.3)
- *   \token_error()           — RFC 6749 §5.2 error response (H.3.7)
- *   \token_success()         — RFC 6749 §5.1 success response (H.3.7)
+ *   \oauth_client_ip()              — trusted-proxy-aware client IP
+ *   \oauth_is_https()               — scheme detection (H.2.5)
+ *   \oauth_read_auth_header()       — Authorization header recovery (H.2.6)
+ *   \oauth_log_boundary()           — metadata-only boundary event (H.4.3)
+ *   \oauth_is_mcp_resource_request() — bearer-auth gate (C-1, H.1.2)
+ *   \token_error()                  — RFC 6749 §5.2 error response (H.3.7)
+ *   \token_success()                — RFC 6749 §5.1 success response (H.3.7)
  *
  * Copyright (C) 2026 Wicked Evolutions
  * License: GPL-2.0-or-later
@@ -256,7 +257,13 @@ final class AuthorizationServer {
 	/**
 	 * Bearer token authentication hook (determine_current_user, priority 20).
 	 *
-	 * If no user is resolved yet and an OAuth Bearer token is present:
+	 * Bearer authentication is narrowed to requests targeting the MCP resource
+	 * endpoint (C-1, H.1.2). On every other URI this filter is a no-op; the
+	 * token never authenticates the user on /wp-json/wp/v2/* or any other REST
+	 * route — those are not the resource the token was issued for.
+	 *
+	 * If no user is resolved yet, the request targets the MCP resource, and
+	 * an OAuth Bearer token is present:
 	 * - Validates token (not expired, not revoked, resource matches)
 	 * - Sets OAuthRequestContext with user_id, scopes, resource, client_id, token_id
 	 * - Returns user_id to WordPress
@@ -281,6 +288,16 @@ final class AuthorizationServer {
 		$path = (string) ( $_SERVER['REQUEST_URI'] ?? '' );
 		if ( str_contains( $path, '/wp-json/mcp/' ) || str_contains( $path, '/wp-json/abilities-mcp-adapter/' ) ) {
 			AuthHeaderProbe::record( null !== $auth_header && '' !== $auth_header );
+		}
+
+		// C-1 / H.1.2: Bearer auth is scoped to the MCP resource endpoint.
+		// `determine_current_user` fires on every REST request; without this gate
+		// a token issued for the MCP resource would authenticate the bound user
+		// on /wp-json/wp/v2/users, /wp-json/wp/v2/plugins, etc., where the H.1.3
+		// scope enforcer never fires — silently granting full WP capabilities.
+		// On any non-MCP-resource URI, bearer auth is a no-op.
+		if ( ! \oauth_is_mcp_resource_request() ) {
+			return $user_id;
 		}
 
 		if ( ! $auth_header || ! str_starts_with( $auth_header, 'Bearer ' ) ) {
