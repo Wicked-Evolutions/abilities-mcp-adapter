@@ -138,6 +138,11 @@ final class AdapterAdminPage {
 		if ( isset( $_POST['mcp_safety_action'] ) ) {
 			SafetyTab::handle_save();
 		}
+
+		// Connected Bridges tab: revoke action.
+		if ( isset( $_POST[ ConnectedBridgesTab::ACTION_FIELD ] ) ) {
+			ConnectedBridgesTab::handle_action();
+		}
 	}
 
 	/**
