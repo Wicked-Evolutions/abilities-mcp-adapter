@@ -42,13 +42,18 @@ final class TokenStore {
 	/**
 	 * Issue a new access + refresh token pair.
 	 *
+	 * The response always includes `token_type: Bearer` (RFC 6749 §5.1 REQUIRED)
+	 * and the granted `scope` as stored (the expanded set, per RFC 6749 §3.3).
+	 * Scope is always returned — the stored set is umbrella-expanded so it
+	 * always differs from the umbrella strings the client originally requested.
+	 *
 	 * @param string $client_id
 	 * @param int    $user_id
-	 * @param string $scope     Space-separated scope string.
+	 * @param string $scope     Space-separated scope string (umbrella-expanded).
 	 * @param string $resource  Resource indicator URL.
 	 * @param int    $access_ttl  Override access TTL (seconds).
 	 * @param int    $refresh_ttl Override refresh TTL (seconds).
-	 * @return array{access_token: string, refresh_token: string, expires_in: int, scope: string}
+	 * @return array{access_token: string, token_type: string, refresh_token: string, expires_in: int, scope: string}
 	 */
 	public static function issue(
 		string $client_id,
@@ -121,6 +126,7 @@ final class TokenStore {
 
 		return [
 			'access_token'  => $access_token,
+			'token_type'    => 'Bearer',
 			'refresh_token' => $refresh_token,
 			'expires_in'    => $access_ttl,
 			'scope'         => $scope,
