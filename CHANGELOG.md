@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.4.2] - 2026-04-28
+
+OAuth 2.1 hardening release. Eight findings from external security review fixed in eight sequential PRs (#52, #55, #56, #57, #58, #59, #60, #61).
+
+### Security — Critical
+- **C-1: Bearer auth global-session leak.** `authenticate_bearer()` previously fired on every WP REST request; a Bearer token issued for `/wp-json/mcp/...` could authenticate the holder against any other REST endpoint on the site. Now narrowed to MCP resource paths only — non-MCP routes no-op. (#52)
+- **C-2: Refresh idempotent retry returned `invalid_grant`.** The grace-window retry path stored a hash, then tried to return plaintext, hit the contradiction, and emitted `invalid_grant`. Bridge retry-on-network-blip — the very scenario H.2.1's grace was designed for — evicted operators to reauth. Redesigned with encrypt-at-rest: rotation stores the new plaintext pair as AES-256-GCM ciphertext under an HKDF-SHA256 key derived from the *old* refresh token's plaintext + `AUTH_KEY`. Retry within grace decrypts using the supplied old plaintext, returns the original pair, and one-shot wipes the blob. Retry outside grace revokes the family. New schema columns `replay_blob` and `replay_blob_iv` on `kl_oauth_refresh_tokens`; `db_version` 1.0.0 → 1.1.0 via `dbDelta` (idempotent). (#61)
+- **C-3: 401 with no `WWW-Authenticate` challenge.** Unauthenticated requests to MCP resource paths returned a plain 401 with no challenge header, breaking RFC 6750 §3 discovery. Bare-form `WWW-Authenticate: Bearer realm=..., resource_metadata=...` (no `error` param) now scheduled on every MCP-path 401 with no `Authorization` header. (#56)
+
+### Security — High
+- **H-1: Distinguishable error_description for revoked vs expired/missing tokens.** A polling attacker could distinguish revocation from natural expiry by reading `error_description`. Normalized to identical text. (#56)
+- **H-2: `/oauth/revoke` accepted unauthenticated requests from any caller.** Now requires `client_id` that hash-equals the stored value (RFC 7009 §2.1 public-client proof of possession). Revocation now cascades — refresh revoke → `revoke_family`; access revoke → paired refresh tokens marked revoked. New `TokenStore::find_token_meta()` helper. (#56)
+- **H-3: No cleanup of expired/unused records.** New `OAuthCleanup` class with daily `abilities_oauth_cleanup_unused_clients` cron pass. All four `kl_oauth_*` tables cleaned in BATCH=500 loops. 50,000-row alert persisted to an option + admin notice. Schedule wired at activation, `init` priority 25 (survives plugin updates), and deactivation. (#57)
+- **H-4: Non-atomic per-IP rate-limit counter (race).** RateLimiter primitives replaced: `wp_cache_add` + `wp_cache_incr` when an external object cache is present (atomic on Memcached/Redis); `get_site_transient` / `set_site_transient` fallback (network-wide on multisite — all subsites share one budget). Applied to both DCR and revoke rate limiters. (#57)
+- **H-5: Scope enforcer not wired at every dispatch path.** `OAuthScopeEnforcer::check()` was only called at one tools handler; meta-tool, prompts/get, and batch-execute dispatchers bypassed it. Wired at `ToolsHandler`, `ResourcesHandler`, `PromptsHandler`, and `ExecuteAbilityAbility` per-underlying dispatch. Closes scope-bypass issues #39, #40, #42. Builder-based prompts default to `abilities:mcp-adapter:read`; `destructive=true` dispatchers can carry an explicit `permission=read` override. (#55)
+- **H-6: Token response shape and scope semantics.** Token responses now include `token_type: 'Bearer'` (RFC 6749 §5.1). Scope returned to clients is the stored umbrella-expanded set verbatim, not the originally-requested string — gives clients an unambiguous picture of what the token actually covers. (#58)
+
+### Security — Medium
+- **M-5: Path-style multisite discovery routing.** `intercept_pre_wp_routes()` now matches `.well-known/...` and `/oauth/authorize` with `str_starts_with` and extracts the trailing subsite path prefix. `DiscoveryEndpoints` issuer URLs include the prefix so every URL in the discovery documents points to the correct subsite issuer. Enables OAuth on subdirectory multisite setups. (#60)
+- **M-7: `esc_attr()` HTML-encoded `WWW-Authenticate` header values.** Header values must not contain quotes; the correct fix is to strip them, not HTML-encode them to `&quot;`. (#56)
+
+### Fixed — non-security
+- **`family_id` rotation chain broken.** `TokenStore::rotate()` called `issue()` which generated a fresh `family_id` for every rotation, so `revoke_family()` only covered the most recent leg of a chain. `issue()` gains an optional seventh parameter; `rotate()` passes the existing `family_id` through. Every token in a rotation chain now shares one family ID. (#59)
+
+### Internal
+- Schema migration `db_version 1.0.0 → 1.1.0` adds nullable `replay_blob` (LONGBLOB) and `replay_blob_iv` (VARCHAR(32)) columns to `kl_oauth_refresh_tokens`. Existing rows get NULL, fall through to `invalid_grant` on grace retry. No backfill required.
+- Test count: 810 (+82 since 1.4.1). PHP CI matrix unchanged: 8.2, 8.3.
+
 ## [1.4.1] - 2026-04-26
 
 ### Fixed
