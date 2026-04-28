@@ -225,13 +225,31 @@ if ( ! function_exists( 'remove_all_filters' ) ) {
 
 if ( ! function_exists( 'do_action' ) ) {
 	function do_action( $hook, ...$args ) {
-		// Tests don't assert action invocations.
+		// Capture into a global buffer so tests can assert action emissions
+		// without standing up a full filter pipeline. Tests opt in by reading
+		// $GLOBALS['wp_test_actions_invoked']; the array is cleared per-test.
+		if ( ! isset( $GLOBALS['wp_test_actions_invoked'] ) ) {
+			$GLOBALS['wp_test_actions_invoked'] = array();
+		}
+		$GLOBALS['wp_test_actions_invoked'][] = array(
+			'hook' => $hook,
+			'args' => $args,
+		);
 		return null;
 	}
 }
 
 if ( ! function_exists( 'add_action' ) ) {
 	function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
+		// Record so tests can assert specific (hook, callback, priority) wiring.
+		if ( ! isset( $GLOBALS['wp_test_actions'] ) ) {
+			$GLOBALS['wp_test_actions'] = array();
+		}
+		$GLOBALS['wp_test_actions'][] = array(
+			'hook'     => $hook,
+			'callback' => $callback,
+			'priority' => $priority,
+		);
 		return true;
 	}
 }
