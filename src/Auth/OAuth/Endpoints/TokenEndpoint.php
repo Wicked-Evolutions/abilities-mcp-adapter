@@ -49,7 +49,12 @@ final class TokenEndpoint {
 	private static function handle_auth_code( array $params ): never {
 		$code         = sanitize_text_field( $params['code'] ?? '' );
 		$client_id    = sanitize_text_field( $params['client_id'] ?? '' );
-		$redirect_uri = esc_url_raw( $params['redirect_uri'] ?? '' );
+		// M-4: do NOT esc_url_raw() the redirect_uri here. The storage path in
+		// AuthorizeRequestValidator only trim()s the raw value, so any mutation
+		// applied here breaks AuthorizationCodeStore::consume()'s timing-safe
+		// hash_equals() compare. Match the storage-side normalisation exactly.
+		$raw_redirect = $params['redirect_uri'] ?? '';
+		$redirect_uri = is_string( $raw_redirect ) ? trim( $raw_redirect ) : '';
 		$code_verifier = $params['code_verifier'] ?? '';
 
 		if ( ! $code || ! $client_id || ! $redirect_uri || ! $code_verifier ) {

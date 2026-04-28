@@ -71,7 +71,12 @@ final class AuthorizationServer {
 		// Bearer token authentication (priority 20 — after WP core's auth).
 		add_filter( 'determine_current_user', [ self::class, 'authenticate_bearer' ], 20 );
 
-		// Reset OAuthRequestContext at the start of each REST request.
+		// Reset OAuthRequestContext at the start of every WP-bootstrapped request,
+		// REST or otherwise (M-2). Priority 0 fires before any other init handler
+		// could read the singleton. The duplicate rest_api_init wiring is kept so
+		// that requests reaching REST routing still get a clean context even on
+		// init handlers that ran before reset.
+		add_action( 'init', [ OAuthRequestContext::class, 'reset' ], 0 );
 		add_action( 'rest_api_init', [ OAuthRequestContext::class, 'reset' ], 1 );
 
 		// Phase 3: capture OAuth boundary events for the Connected Bridges audit slice.
@@ -254,17 +259,18 @@ final class AuthorizationServer {
 	/** Register REST routes for DCR, token, revoke. */
 	public static function register_rest_routes(): void {
 		$ns = self::REST_NS;
+		$gate = [ self::class, 'rest_host_allowlist_gate' ];
 
 		register_rest_route( $ns, '/oauth/register', [
 			[
 				'methods'             => 'GET',
 				'callback'            => [ RegisterEndpoint::class, 'handle_get' ],
-				'permission_callback' => '__return_true',
+				'permission_callback' => $gate,
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ RegisterEndpoint::class, 'handle_post' ],
-				'permission_callback' => '__return_true',
+				'permission_callback' => $gate,
 			],
 		] );
 
@@ -272,12 +278,12 @@ final class AuthorizationServer {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ TokenEndpoint::class, 'handle_get' ],
-				'permission_callback' => '__return_true',
+				'permission_callback' => $gate,
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ TokenEndpoint::class, 'handle_post' ],
-				'permission_callback' => '__return_true',
+				'permission_callback' => $gate,
 			],
 		] );
 
@@ -285,14 +291,41 @@ final class AuthorizationServer {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ RevokeEndpoint::class, 'handle_get' ],
-				'permission_callback' => '__return_true',
+				'permission_callback' => $gate,
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ RevokeEndpoint::class, 'handle_post' ],
-				'permission_callback' => '__return_true',
+				'permission_callback' => $gate,
 			],
 		] );
+	}
+
+	/**
+	 * REST permission_callback that mirrors the pre-WP host check (M-6).
+	 *
+	 * Without this, /wp-json/mcp/oauth/{register,token,revoke} accepted requests
+	 * from any host while /oauth/authorize and /.well-known/* were properly
+	 * gated — a real defense bypass of the host allowlist control.
+	 *
+	 * Returns a WP_Error (404) on rejection to give the same response shape as
+	 * the pre-WP path's `status_header(404); exit`. Logs the same boundary
+	 * event so an unknown-host rejection is visible regardless of which entry
+	 * point the request hit.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public static function rest_host_allowlist_gate() {
+		$host = $_SERVER['HTTP_HOST'] ?? '';
+		if ( OAuthHostAllowlist::is_allowed( $host ) ) {
+			return true;
+		}
+		\oauth_log_boundary( 'boundary.oauth_host_rejected', [ 'ip' => \oauth_client_ip() ] );
+		return new \WP_Error(
+			'rest_no_route',
+			'No route was found matching the URL and request method.',
+			[ 'status' => 404 ]
+		);
 	}
 
 	/**
@@ -352,7 +385,9 @@ final class AuthorizationServer {
 			return $user_id;
 		}
 
-		$bearer_token = substr( $auth_header, 7 );
+		// L-1: trim() the token so a misbehaving proxy that adds whitespace
+		// (e.g. "Bearer  TOKEN" with two spaces) doesn't silently break auth.
+		$bearer_token = trim( substr( $auth_header, 7 ) );
 		if ( ! $bearer_token ) {
 			return $user_id;
 		}
