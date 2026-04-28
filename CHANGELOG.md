@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.3] - 2026-04-28
+
+OAuth 2.1 second-pass hardening release. Five additional findings from external security review fixed in two PRs (#71, #72).
+
+### Security — Medium
+- **M-2: `OAuthRequestContext` reset only fired on `rest_api_init`.** PHP-FPM workers handling REST + non-REST requests could retain stale singleton state across requests. Reset is now also wired to `init` priority 0; both hooks remain for belt-and-braces. (#71)
+- **M-4: `esc_url_raw($params['redirect_uri'])` mutated the value before `hash_equals` in `TokenEndpoint::handle_auth_code`.** Round-trip mutation defeats timing-safe semantics and could lock out legitimate clients on URIs with characters `esc_url_raw` re-encodes. Now `trim()` only — matches `AuthorizeRequestValidator::str()` storage-side normalization exactly. (#71)
+- **M-6: REST routes `/wp-json/mcp/oauth/{register,token,revoke}` bypassed `OAuthHostAllowlist`.** Pre-WP routes (`/oauth/authorize`, `/.well-known/*`) were gated; REST routes weren't. New `rest_host_allowlist_gate()` wired as `permission_callback` on all six REST routes — unknown hosts now get `WP_Error 404` + `boundary.oauth_host_rejected` event, parity with the pre-WP path. (#71)
+- **H-9: Loopback redirect_uri query-string compare was order-sensitive and not RFC 8252 §7.3 compliant.** `?foo=1&bar=2` and `?bar=2&foo=1` would not match; percent-encoding differences and trailing-`?` would also reject equivalent URIs. New `query_normalize()` helper (`parse_str` → `ksort` → `http_build_query(PHP_QUERY_RFC3986)`) makes loopback query compare order-and-encoding-stable. Fragments now rejected on both sides per RFC 6749 §3.1.2. Path strict compare retained (most native HTTP servers route `/cb` and `/cb/` differently). (#72)
+
+### Security — Low
+- **L-1: Bearer Authorization strings beyond `Bearer ` prefix not trimmed.** `Authorization: Bearer  TOKEN` (two spaces from a misbehaving proxy) hashed as ` TOKEN` and silently failed validation. Now `trim()`'d. (#71)
+
+### Internal
+- Test count: 844 (+34 since 1.4.2). PHP CI matrix unchanged: 8.2, 8.3.
+
 ## [1.4.2] - 2026-04-28
 
 OAuth 2.1 hardening release. Eight findings from external security review fixed in eight sequential PRs (#52, #55, #56, #57, #58, #59, #60, #61).
