@@ -87,8 +87,23 @@ final class ClientRegistry {
 
 	/**
 	 * Validate that a redirect_uri was registered for this client.
-	 * Loopback URIs match ignoring port (OAuth 2.1 §10.3.3).
-	 * Non-loopback URIs require exact string match.
+	 *
+	 * Loopback URIs match ignoring port (OAuth 2.1 §10.3.3 / RFC 8252 §7.3).
+	 * Loopback query strings are compared *normalized* (H-9): same key/value
+	 * pairs in any order, with consistent percent-encoding, are treated as
+	 * equivalent. Path is still compared strictly — `/callback` and
+	 * `/callback/` are distinct because most native HTTP servers route them
+	 * to different handlers, and normalising would mask client misconfig.
+	 *
+	 * Non-loopback URIs require exact string match (H.1.2 — exact-match is
+	 * the safer rule for redirect URIs that may carry tokens/codes through
+	 * proxies/CDNs/browser cache layers).
+	 *
+	 * Fragments are rejected on the candidate side (RFC 6749 §3.1.2: "The
+	 * endpoint URI MUST NOT include a fragment component."). A registered
+	 * URI that itself contains a fragment is also rejected as a non-match,
+	 * but the storage side already treats fragments as invalid input via
+	 * the registration validator — this is belt-and-suspenders.
 	 *
 	 * @param object $client   Row from find().
 	 * @param string $uri      URI to validate.
@@ -102,6 +117,15 @@ final class ClientRegistry {
 		}
 
 		$parsed_candidate = parse_url( $uri );
+		if ( ! is_array( $parsed_candidate ) ) {
+			return false;
+		}
+
+		// RFC 6749 §3.1.2: redirect_uri MUST NOT include a fragment (H-9).
+		if ( isset( $parsed_candidate['fragment'] ) ) {
+			return false;
+		}
+
 		$candidate_host   = $parsed_candidate['host'] ?? '';
 		$candidate_scheme = $parsed_candidate['scheme'] ?? '';
 		$candidate_path   = $parsed_candidate['path'] ?? '/';
@@ -118,13 +142,19 @@ final class ClientRegistry {
 
 		foreach ( $registered as $registered_uri ) {
 			if ( $is_loopback && $candidate_scheme === 'http' ) {
-				// Loopback: match scheme + host + path + query, ignore port (OAuth 2.1 §10.3.3).
+				// Loopback: match scheme + host + path; ignore port; normalize query (H-9).
 				$parsed_reg = parse_url( $registered_uri );
+				if ( ! is_array( $parsed_reg ) ) {
+					continue;
+				}
+				if ( isset( $parsed_reg['fragment'] ) ) {
+					continue;
+				}
 				if (
 					( $parsed_reg['scheme'] ?? '' ) === $candidate_scheme &&
 					( $parsed_reg['host'] ?? '' ) === $candidate_host &&
 					( $parsed_reg['path'] ?? '/' ) === $candidate_path &&
-					( $parsed_reg['query'] ?? '' ) === $candidate_query
+					self::query_normalize( $parsed_reg['query'] ?? '' ) === self::query_normalize( $candidate_query )
 				) {
 					return true;
 				}
@@ -137,6 +167,30 @@ final class ClientRegistry {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Normalize a query string for loopback redirect_uri comparison (H-9).
+	 *
+	 * - parse_str canonicalizes percent-encoding (%20 ↔ + → space) into the
+	 *   key/value pairs.
+	 * - ksort orders keys deterministically so ?foo=1&bar=2 ≡ ?bar=2&foo=1.
+	 * - http_build_query re-encodes with PHP_QUERY_RFC3986 so the canonical
+	 *   form is always %20 (never +) for spaces.
+	 * - Empty query and missing query both collapse to '' via the upstream
+	 *   `?? ''` default.
+	 */
+	private static function query_normalize( string $query ): string {
+		if ( $query === '' ) {
+			return '';
+		}
+		$parts = [];
+		parse_str( $query, $parts );
+		if ( ! is_array( $parts ) || $parts === [] ) {
+			return '';
+		}
+		ksort( $parts );
+		return http_build_query( $parts, '', '&', PHP_QUERY_RFC3986 );
 	}
 
 	/**
