@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Tech-debt
+- **AuthHeaderProbe namespace gate cleaned up (H.2.6 diagnostic now actually fires).** `AuthorizationServer::authenticate_bearer` was matching both `/wp-json/mcp/` and the stale `/wp-json/abilities-mcp-adapter/` namespace before recording an observation. The latter is left over from a pre-rename branch — no REST routes are registered there, so the probe was silently dead on requests that hit it (and harmlessly recording-on-noise on requests that didn't, which means the rolling counter never reflected real traffic). Dropped the dead OR branch; probe now records only on `/wp-json/mcp/` traffic, restoring the H.2.6 diagnostic. (#53)
 - **MCP route lifted to a single source of truth.** Previously the path `mcp/mcp-adapter-default-server` was hard-coded across `AuthorizationServer`, `AuthorizeEndpoint`, `DiscoveryEndpoints`, and `helpers.php` (six callsites across four files). Drift between callsites would silently narrow Bearer auth or break resource validation. New `McpResourcePath` value class exposes `REST_NAMESPACE`, `ROUTE`, `PATH` (no leading slash, for `rest_url()`), and `LEADING_SLASH_PATH` (for REQUEST_URI / rest_route compares). All production callsites now consume the constants; a future rename touches one file. Behavior-preserving refactor — all 855 existing tests stay green; 4 new tests pin the constant values. (#54)
 
 ### Performance / tech-debt
