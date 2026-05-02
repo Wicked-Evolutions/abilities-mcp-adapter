@@ -42,6 +42,13 @@ if ( ! isset( $GLOBALS['wp_test_options'] ) ) {
 
 if ( ! function_exists( 'get_option' ) ) {
 	function get_option( $option, $default = false ) {
+		// Mirror WP semantics: a `pre_option_*` filter that returns anything
+		// other than `false` short-circuits the lookup. Lets tests simulate
+		// option-backend failures (e.g. throwing filters) without a real DB.
+		$pre = apply_filters( 'pre_option_' . $option, false, $option, $default );
+		if ( false !== $pre ) {
+			return $pre;
+		}
 		return $GLOBALS['wp_test_options'][ $option ] ?? $default;
 	}
 }

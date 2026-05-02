@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Security — Medium
+- **M-8: `LastConsentLookup::timestamp_for()` is now explicitly fail-closed.** Audit (2026-04-27) flagged the unhandled-throw path: a third-party `pre_option_*` / `option_*` filter that throws would bubble to a 500 instead of routing the operator to consent. Verified the existing flow was already implicitly fail-closed (null return → `ConsentDecisionEvaluator` branch 1 → `RENDER_FULL` with reason `first_authorization`). Locked the contract: any `\Throwable` from the option backend now returns null, which is strictly safer than a 500. `days_since()` inherits the same protection. (#65)
+
 ## [1.4.3] - 2026-04-28
 
 OAuth 2.1 second-pass hardening release. Five additional findings from external security review fixed in two PRs (#71, #72).

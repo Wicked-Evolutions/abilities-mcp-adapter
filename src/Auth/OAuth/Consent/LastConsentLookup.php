@@ -46,9 +46,24 @@ final class LastConsentLookup {
 
 	/**
 	 * Most recent interactive-consent UNIX timestamp, or null if none recorded.
+	 *
+	 * Fail-closed contract (M-8 audit, 2026-04-27):
+	 *   - Missing option / empty stored value → null.
+	 *   - Any Throwable from the WP option backend (incl. third-party
+	 *     `pre_option_*` / `option_*` filters that may throw) → null.
+	 *
+	 * Null routes {@see ConsentDecisionEvaluator::evaluate()} to RENDER_FULL
+	 * with reason `first_authorization` — never auto-approve. Returning null
+	 * on Throwable is strictly safer than letting the exception bubble to a
+	 * 500: a 500 leaks "consent infrastructure broken" to the bridge, while
+	 * null silently routes the operator to the consent screen.
 	 */
 	public static function timestamp_for( string $client_id, int $user_id ): ?int {
-		$value = get_option( self::key( $client_id, $user_id ), null );
+		try {
+			$value = get_option( self::key( $client_id, $user_id ), null );
+		} catch ( \Throwable $e ) {
+			return null;
+		}
 		if ( null === $value || '' === $value ) {
 			return null;
 		}
