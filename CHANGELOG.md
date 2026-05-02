@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.4.4] - 2026-05-02
 
 ### Test infra
 - **#27: Rate-limit burst harness shipped.** New CLI tool `bin/rate-limit-burst.php` and `RateLimit\BurstHarness` helper class — session-aware harness that exercises the live `/wp-json/mcp/mcp-adapter-default-server` endpoint past its IP and initialize windows and verifies the wire response (429 + Retry-After + boundary log entry) matches the limiter contract. Pairs with `RateLimiter`'s 33 unit cases, which pin the in-memory math; this harness pins the wire behavior. Two cases (`threshold-trip`, `initialize-window`) automated; the multi-source per-IP separation and trusted-proxy header trust matrix are documented in the script header for operator-run coverage. 15 unit tests cover header parsing, session merge (defensive vs future per-request token rotation), and result classification. (#27)
