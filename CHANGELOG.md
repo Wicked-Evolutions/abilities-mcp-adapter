@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Performance / tech-debt
+- **L-2: `TokenStore::touch()` no longer issues a synchronous `UPDATE` per request.** Previously every authenticated MCP request blocked on a `wpdb->update` of `last_used_at` on the access-token table — a hot row under burst load. `touch()` now stamps a per-request in-memory buffer keyed by `token_hash` and registers a `register_shutdown_function` flush on first use. Multiple touches for the same token within one request coalesce into one UPDATE; distinct tokens flush as N UPDATEs after the response is sent. Cross-request batching (transient + cron flush, issue body's Option A) is intentionally not introduced — the simpler shutdown-flush refactor is sufficient at current scale and leaves Option A as a future move without changing the `touch()` API. (#67)
+
 ### Security — Medium
 - **M-8: `LastConsentLookup::timestamp_for()` is now explicitly fail-closed.** Audit (2026-04-27) flagged the unhandled-throw path: a third-party `pre_option_*` / `option_*` filter that throws would bubble to a 500 instead of routing the operator to consent. Verified the existing flow was already implicitly fail-closed (null return → `ConsentDecisionEvaluator` branch 1 → `RENDER_FULL` with reason `first_authorization`). Locked the contract: any `\Throwable` from the option backend now returns null, which is strictly safer than a 500. `days_since()` inherits the same protection. (#65)
 
