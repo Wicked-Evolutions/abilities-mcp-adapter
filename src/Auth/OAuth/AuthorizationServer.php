@@ -358,9 +358,11 @@ final class AuthorizationServer {
 
 		// Phase 3 (H.2.6): record header presence/absence for the diagnostic.
 		// Only count requests that actually look like MCP traffic so the rolling
-		// counter reflects bridge calls, not unrelated REST hits.
+		// counter reflects bridge calls, not unrelated REST hits. The stale
+		// `/wp-json/abilities-mcp-adapter/` namespace from a pre-rename branch
+		// has no routes registered — matching it was silently dead (#53).
 		$path = (string) ( $_SERVER['REQUEST_URI'] ?? '' );
-		if ( str_contains( $path, '/wp-json/mcp/' ) || str_contains( $path, '/wp-json/abilities-mcp-adapter/' ) ) {
+		if ( str_contains( $path, '/wp-json/mcp/' ) ) {
 			AuthHeaderProbe::record( null !== $auth_header && '' !== $auth_header );
 		}
 
