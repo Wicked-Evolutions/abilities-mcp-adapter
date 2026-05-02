@@ -419,7 +419,7 @@ final class AuthorizationServer {
 		}
 
 		// Resource indicator validation (H.1.2) — token must be bound to this site's MCP endpoint.
-		$current_resource = rest_url( 'mcp/mcp-adapter-default-server' );
+		$current_resource = rest_url( McpResourcePath::PATH );
 		if ( ! hash_equals( (string) $row->resource, $current_resource ) ) {
 			self::schedule_www_authenticate( 'invalid_token', 'The access token is invalid.' );
 			\oauth_log_boundary( 'boundary.oauth_invalid_token', [ 'client_id' => $row->client_id, 'reason' => 'resource_mismatch' ] );

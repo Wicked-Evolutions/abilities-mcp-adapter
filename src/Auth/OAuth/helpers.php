@@ -106,12 +106,12 @@ if ( ! function_exists( 'oauth_is_mcp_resource_request' ) ) {
 			return false;
 		}
 
-		$rest_route = '/mcp/mcp-adapter-default-server';
+		$rest_route = \WickedEvolutions\McpAdapter\Auth\OAuth\McpResourcePath::LEADING_SLASH_PATH;
 
 		// Pretty permalinks. Derive the path from rest_url() so subdir / multisite
 		// installs (e.g. /wp/wp-json/...) are matched against their actual prefix.
 		if ( function_exists( 'rest_url' ) ) {
-			$resource_url  = (string) rest_url( 'mcp/mcp-adapter-default-server' );
+			$resource_url  = (string) rest_url( \WickedEvolutions\McpAdapter\Auth\OAuth\McpResourcePath::PATH );
 			$resource_path = (string) parse_url( $resource_url, PHP_URL_PATH );
 			if ( $resource_path !== '' && str_starts_with( $uri, $resource_path ) ) {
 				$tail = substr( $uri, strlen( $resource_path ) );
