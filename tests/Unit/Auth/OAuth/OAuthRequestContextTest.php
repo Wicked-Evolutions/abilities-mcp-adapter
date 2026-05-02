@@ -22,9 +22,12 @@ final class OAuthRequestContextTest extends TestCase {
 		$this->assertFalse( OAuthRequestContext::is_oauth_request() );
 	}
 
-	public function test_has_scope_returns_true_when_not_oauth(): void {
-		// Non-OAuth requests: WP caps govern, scope checks pass through.
-		$this->assertTrue( OAuthRequestContext::has_scope( 'abilities:write' ) );
+	public function test_oauth_has_scope_returns_false_when_not_oauth(): void {
+		// M-3 (2026-04-27 audit): strict contract — non-OAuth requests return
+		// false so callers MUST handle the non-OAuth path explicitly. The
+		// previous "true → caps govern" default was trivially fail-open if a
+		// future caller used this as the sole authorization gate.
+		$this->assertFalse( OAuthRequestContext::oauth_has_scope( 'abilities:write' ) );
 	}
 
 	public function test_granted_scopes_empty_before_set(): void {
@@ -48,11 +51,27 @@ final class OAuthRequestContextTest extends TestCase {
 		$this->assertSame( 42, OAuthRequestContext::token_id() );
 	}
 
-	public function test_has_scope_exact_match(): void {
+	public function test_oauth_has_scope_exact_match(): void {
 		OAuthRequestContext::set( user_id: 1, scopes: [ 'abilities:read' ], resource: '', client_id: '', token_id: 0 );
 
-		$this->assertTrue( OAuthRequestContext::has_scope( 'abilities:read' ) );
-		$this->assertFalse( OAuthRequestContext::has_scope( 'abilities:write' ) );
+		$this->assertTrue( OAuthRequestContext::oauth_has_scope( 'abilities:read' ) );
+		$this->assertFalse( OAuthRequestContext::oauth_has_scope( 'abilities:write' ) );
+	}
+
+	public function test_oauth_has_scope_does_not_expand_umbrella_grants(): void {
+		// Direct in_array match only. Umbrella expansion is a separate
+		// concern handled by OAuthScopeEnforcer::check_scope() for non-
+		// sensitive scopes. Sensitive scopes are NEVER implied by umbrella.
+		OAuthRequestContext::set(
+			user_id: 1,
+			scopes: [ 'abilities:content' ], // umbrella, not the leaf
+			resource: '',
+			client_id: '',
+			token_id: 0
+		);
+
+		$this->assertTrue(  OAuthRequestContext::oauth_has_scope( 'abilities:content' ) );
+		$this->assertFalse( OAuthRequestContext::oauth_has_scope( 'abilities:content:read' ) );
 	}
 
 	public function test_reset_clears_context(): void {

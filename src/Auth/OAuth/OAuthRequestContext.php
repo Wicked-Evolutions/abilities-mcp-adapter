@@ -68,17 +68,27 @@ final class OAuthRequestContext {
 	}
 
 	/**
-	 * Check whether a required scope is present in the granted set.
+	 * Whether the current OAuth request has the given scope explicitly granted.
 	 *
-	 * Sensitive scopes are NEVER implied by umbrella grants — each must be
-	 * explicitly present. See ScopeRegistry::SENSITIVE_SCOPES.
+	 * Strict contract (M-3, 2026-04-27 audit):
+	 *   - Non-OAuth request → false. Callers MUST handle the non-OAuth path
+	 *     explicitly (e.g. fall back to `current_user_can( ... )`). Returning
+	 *     true here previously made the API trivially fail-open if a future
+	 *     caller used it as the sole authorization gate.
+	 *   - OAuth request, scope present in granted set → true.
+	 *   - OAuth request, scope absent → false.
 	 *
-	 * @param string $required_scope
-	 * @return bool
+	 * Match is direct `in_array` — sensitive scopes are NEVER implied by
+	 * umbrella grants (see ScopeRegistry::SENSITIVE_SCOPES). For umbrella-
+	 * aware non-sensitive scope expansion, route through
+	 * `OAuthScopeEnforcer::check_scope()` instead.
+	 *
+	 * Renamed from `has_scope()` to make the OAuth-specific semantics obvious
+	 * at every call site.
 	 */
-	public static function has_scope( string $required_scope ): bool {
+	public static function oauth_has_scope( string $required_scope ): bool {
 		if ( ! self::is_oauth_request() ) {
-			return true; // Non-OAuth requests: scope check is irrelevant; WP caps govern.
+			return false;
 		}
 		return in_array( $required_scope, self::$current['scopes'], true );
 	}
