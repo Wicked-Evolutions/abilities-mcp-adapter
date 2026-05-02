@@ -86,12 +86,10 @@ final class RegisterEndpoint {
 		}
 
 		// Validate scopes — drop unknown scopes silently (be liberal in what we accept).
-		$requested_scopes = explode( ' ', $scope );
-		$valid_scopes     = array_filter(
-			$requested_scopes,
-			fn( $s ) => in_array( $s, ScopeRegistry::all_scopes(), true )
-		);
-		$scope = implode( ' ', $valid_scopes ) ?: 'abilities:read';
+		$classification             = self::classify_scopes( $scope );
+		$valid_scopes               = $classification['valid'];
+		$sensitive_scopes_requested = $classification['sensitive'];
+		$scope                      = implode( ' ', $valid_scopes ) ?: 'abilities:read';
 
 		// Register.
 		$client_id = ClientRegistry::register(
@@ -110,6 +108,13 @@ final class RegisterEndpoint {
 			'ip'         => $ip,
 		] );
 
+		// L-3: surface any sensitive scopes the client requested so the bridge
+		// (and the Connected Bridges admin UI) can show "X sensitive scopes
+		// requested — will require explicit consent" instead of conflating
+		// registration with consent. Storage is unchanged: the DCR record
+		// continues to hold every valid scope including sensitive ones, since
+		// sensitive scopes are gated at /oauth/authorize per H.3.4 and never
+		// land on a token without explicit operator consent.
 		DiscoveryEndpoints::json_response( [
 			'client_id'                  => $client_id,
 			'client_id_issued_at'        => time(),
@@ -119,7 +124,32 @@ final class RegisterEndpoint {
 			'response_types'             => [ 'code' ],
 			'token_endpoint_auth_method' => 'none',
 			'scope'                      => $scope,
+			'sensitive_scopes_requested' => $sensitive_scopes_requested,
 		], 201 );
+	}
+
+	/**
+	 * Classify a space-separated scope string into valid known scopes and
+	 * the subset of those that are sensitive (per `ScopeRegistry::is_sensitive`).
+	 *
+	 * Unknown scopes are dropped silently (RFC 7591 §2.1 — server may modify
+	 * the requested scope set). Sensitive scopes are kept in the valid set —
+	 * gating happens at consent time, not at registration.
+	 *
+	 * @return array{valid: string[], sensitive: string[]}
+	 */
+	public static function classify_scopes( string $scope_str ): array {
+		$requested = '' === $scope_str ? array() : explode( ' ', $scope_str );
+		$valid     = array_values( array_filter(
+			$requested,
+			fn( $s ) => in_array( $s, ScopeRegistry::all_scopes(), true )
+		) );
+		$sensitive = array_values( array_filter( $valid, [ ScopeRegistry::class, 'is_sensitive' ] ) );
+
+		return array(
+			'valid'     => $valid,
+			'sensitive' => $sensitive,
+		);
 	}
 
 	/**
