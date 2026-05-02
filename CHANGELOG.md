@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Test infra
+- **#27: Rate-limit burst harness shipped.** New CLI tool `bin/rate-limit-burst.php` and `RateLimit\BurstHarness` helper class — session-aware harness that exercises the live `/wp-json/mcp/mcp-adapter-default-server` endpoint past its IP and initialize windows and verifies the wire response (429 + Retry-After + boundary log entry) matches the limiter contract. Pairs with `RateLimiter`'s 33 unit cases, which pin the in-memory math; this harness pins the wire behavior. Two cases (`threshold-trip`, `initialize-window`) automated; the multi-source per-IP separation and trusted-proxy header trust matrix are documented in the script header for operator-run coverage. 15 unit tests cover header parsing, session merge (defensive vs future per-request token rotation), and result classification. (#27)
+
 ### UX / tech-debt
 - **L-3: DCR registration response now includes `sensitive_scopes_requested`.** Audit (2026-04-27) flagged that the Connected Bridges admin UI conflated "client requested sensitive scopes at DCR" with "client has been consented to sensitive scopes" — a misleading audit signal because sensitive scopes still require explicit interactive consent at `/oauth/authorize` per H.3.4. New `sensitive_scopes_requested` field on the POST `/oauth/register` response (RFC 7591 extension) lists the subset of valid requested scopes that are sensitive, so bridges and the Connected Bridges UI can show "X sensitive scopes requested — will require explicit consent" without inventing the classification client-side. Storage unchanged (sensitive scopes still survive into the DCR record; gating remains at consent time). New `RegisterEndpoint::classify_scopes()` helper makes the valid/sensitive split unit-testable. (#68)
 
