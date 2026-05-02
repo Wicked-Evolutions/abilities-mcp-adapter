@@ -153,7 +153,7 @@ final class AuthorizeEndpoint {
 		$scope_str = implode( ' ', $scopes );
 
 		$plaintext_code = bin2hex( random_bytes( 32 ) );
-		AuthorizationCodeStore::store(
+		$stored         = AuthorizationCodeStore::store(
 			hash( 'sha256', $plaintext_code ),
 			$client_id,
 			$user_id,
@@ -163,6 +163,19 @@ final class AuthorizeEndpoint {
 			$validation->code_challenge,
 			self::CODE_TTL
 		);
+
+		// M-9: do not redirect with a code the bridge can't redeem. The store
+		// already emitted boundary.oauth_code_insert_failed; we surface a
+		// server_error to the bridge instead of leaving it to fail at /token
+		// with invalid_grant and no log correlation.
+		if ( false === $stored ) {
+			self::redirect_with_error(
+				$validation->redirect_uri,
+				'server_error',
+				'The authorization server failed to store the authorization code.',
+				$validation->state
+			);
+		}
 
 		if ( $interactive ) {
 			LastConsentLookup::record( $client_id, $user_id, time() );

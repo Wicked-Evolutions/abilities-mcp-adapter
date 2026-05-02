@@ -25,6 +25,16 @@ final class AuthorizationCodeStore {
 	/**
 	 * Store a new authorization code.
 	 *
+	 * Returns true on successful insert, false on failure. Failures include
+	 * the (vanishingly improbable) code_hash UNIQUE-key collision and any
+	 * other DB-side error reported by `wpdb->insert`. On failure a
+	 * `boundary.oauth_code_insert_failed` event is emitted with the
+	 * client_id and `wpdb->last_error` so operators have a log signal
+	 * instead of a silent invalid_grant downstream (M-9).
+	 *
+	 * Callers MUST check the return value and abort the authorize flow
+	 * before redirecting with a code the bridge can't redeem.
+	 *
 	 * @param string $code_hash          SHA-256 hash of the plaintext code.
 	 * @param string $client_id
 	 * @param int    $user_id
@@ -33,6 +43,7 @@ final class AuthorizationCodeStore {
 	 * @param string $resource           Resource indicator URL.
 	 * @param string $code_challenge     PKCE S256 challenge.
 	 * @param int    $ttl_seconds        Default 600 (10 minutes).
+	 * @return bool True on success, false if the insert was rejected by the DB.
 	 */
 	public static function store(
 		string $code_hash,
@@ -43,10 +54,10 @@ final class AuthorizationCodeStore {
 		string $resource,
 		string $code_challenge,
 		int    $ttl_seconds = 600
-	): void {
+	): bool {
 		global $wpdb;
 
-		$wpdb->insert(
+		$inserted = $wpdb->insert(
 			self::table(),
 			[
 				'code_hash'            => $code_hash,
@@ -63,6 +74,16 @@ final class AuthorizationCodeStore {
 			],
 			[ '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ]
 		);
+
+		if ( false === $inserted ) {
+			\oauth_log_boundary( 'boundary.oauth_code_insert_failed', [
+				'client_id'  => $client_id,
+				'wpdb_error' => isset( $wpdb->last_error ) ? (string) $wpdb->last_error : '',
+			] );
+			return false;
+		}
+
+		return true;
 	}
 
 	/**
