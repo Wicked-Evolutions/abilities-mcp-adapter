@@ -453,15 +453,82 @@ final class TokenStore {
 		}
 	}
 
-	/** Update last_used_at for a token. Fire-and-forget — no error handling needed. */
+	// ─── L-2: deferred last_used_at write ────────────────────────────────────────
+	//
+	// Per-request buffer of token_hash → last_used_at timestamp. `touch()` no
+	// longer issues a synchronous UPDATE; it stamps the buffer and registers a
+	// shutdown flush on first use. At request shutdown, distinct token_hashes
+	// are flushed with one UPDATE each. Effects:
+	//   - N `touch()` calls for the same token in one request → 1 UPDATE.
+	//   - Write happens after the response is sent (off the critical path).
+	//   - PHP's shared-nothing per-request lifecycle resets the buffer between
+	//     requests, so cross-request batching is not attempted here. Operator
+	//     scale that justifies cross-request batching (transient + cron flush,
+	//     issue body's Option A) can be added later without changing the
+	//     `touch()` API.
+
+	/** @var array<string, string> token_hash => Y-m-d H:i:s */
+	private static array $pending_touches = array();
+
+	/** Whether shutdown flush has been registered for this request. */
+	private static bool $touch_flush_registered = false;
+
+	/**
+	 * Mark a token as used. Fire-and-forget — no error handling needed.
+	 *
+	 * Coalesces multiple calls for the same token within one request into a
+	 * single UPDATE deferred to request shutdown (L-2 audit, 2026-04-27).
+	 * Cuts the redundant-write multiplier and moves the write off the
+	 * response critical path. Empty token_hash is a no-op.
+	 */
 	public static function touch( string $token_hash ): void {
+		if ( '' === $token_hash ) {
+			return;
+		}
+
+		self::$pending_touches[ $token_hash ] = gmdate( 'Y-m-d H:i:s' );
+
+		if ( ! self::$touch_flush_registered && function_exists( 'register_shutdown_function' ) ) {
+			register_shutdown_function( array( self::class, 'flush_pending_touches' ) );
+			self::$touch_flush_registered = true;
+		}
+	}
+
+	/**
+	 * Flush buffered last_used_at writes to the DB.
+	 *
+	 * Invoked by `register_shutdown_function` at request shutdown. Public so
+	 * tests can drive flushes deterministically; production callers should
+	 * not invoke it directly.
+	 */
+	public static function flush_pending_touches(): void {
+		if ( empty( self::$pending_touches ) ) {
+			return;
+		}
 		global $wpdb;
-		$wpdb->update(
-			self::access_table(),
-			[ 'last_used_at' => gmdate( 'Y-m-d H:i:s' ) ],
-			[ 'token_hash' => $token_hash ],
-			[ '%s' ],
-			[ '%s' ]
-		);
+
+		$pending               = self::$pending_touches;
+		self::$pending_touches = array();
+
+		foreach ( $pending as $token_hash => $stamp ) {
+			$wpdb->update(
+				self::access_table(),
+				array( 'last_used_at' => $stamp ),
+				array( 'token_hash' => $token_hash ),
+				array( '%s' ),
+				array( '%s' )
+			);
+		}
+	}
+
+	/**
+	 * Reset the per-request touch buffer + shutdown registration flag.
+	 *
+	 * Test hook only — phpunit runs many tests in one process and statics
+	 * persist across tests. Production code must not call this.
+	 */
+	public static function reset_pending_touches_for_tests(): void {
+		self::$pending_touches        = array();
+		self::$touch_flush_registered = false;
 	}
 }
