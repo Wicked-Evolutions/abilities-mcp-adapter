@@ -99,4 +99,54 @@ final class ScopeRegistryTest extends TestCase {
 		$this->assertContains( 'abilities:bogus:scope', $unknown );
 		$this->assertNotContains( 'abilities:read', $unknown );
 	}
+
+	// --- Fluent suite scopes (#74) ---
+
+	/**
+	 * Every Fluent module category registered in abilities-for-fluent-plugins
+	 * must have a matching scope group in the registry, otherwise OAuth-bound
+	 * Fluent ability calls fail with insufficient_scope at execute time.
+	 */
+	public function test_fluent_per_module_scopes_are_registered(): void {
+		$modules = [
+			'fluent-crm', 'fluent-community', 'fluent-forms', 'fluent-support',
+			'fluent-boards', 'fluent-booking', 'fluent-smtp', 'fluent-auth',
+			'fluent-snippets', 'fluent-messaging', 'fluent-cart', 'fluent-affiliate',
+		];
+		$scopes  = ScopeRegistry::all_scopes();
+
+		foreach ( $modules as $m ) {
+			$this->assertContains( "abilities:{$m}:read",   $scopes, "{$m} read scope must be registered" );
+			$this->assertContains( "abilities:{$m}:write",  $scopes, "{$m} write scope must be registered" );
+			$this->assertContains( "abilities:{$m}:delete", $scopes, "{$m} delete scope must be registered" );
+		}
+	}
+
+	public function test_fluent_cross_module_scopes_are_registered(): void {
+		// Cross-module Fluent abilities (e.g. fluent-get-user-360, fluent-get-suite-dashboard)
+		// register under the 'fluent' category and require abilities:fluent:<op>.
+		$scopes = ScopeRegistry::all_scopes();
+		$this->assertContains( 'abilities:fluent:read',   $scopes );
+		$this->assertContains( 'abilities:fluent:write',  $scopes );
+		$this->assertContains( 'abilities:fluent:delete', $scopes );
+	}
+
+	public function test_fluent_scopes_are_not_sensitive(): void {
+		// Fluent scopes follow the existing third-party suite pattern
+		// (spectra/presto-player/surecart/astra) — explicit per-module grant
+		// required, but not subject to the sensitive-scope rule that bans
+		// umbrella implication.
+		$this->assertFalse( ScopeRegistry::is_sensitive( 'abilities:fluent-crm:read' ) );
+		$this->assertFalse( ScopeRegistry::is_sensitive( 'abilities:fluent:read' ) );
+	}
+
+	public function test_global_umbrella_does_not_imply_fluent_scopes(): void {
+		// Matches the existing suite pattern: abilities:read does NOT imply
+		// abilities:spectra:read, so it must not imply abilities:fluent-crm:read
+		// either. Operators must explicitly request a Fluent scope.
+		$expanded = ScopeRegistry::expand( [ 'abilities:read' ] );
+		$this->assertNotContains( 'abilities:fluent-crm:read',     $expanded );
+		$this->assertNotContains( 'abilities:fluent-community:read', $expanded );
+		$this->assertNotContains( 'abilities:fluent:read',         $expanded );
+	}
 }

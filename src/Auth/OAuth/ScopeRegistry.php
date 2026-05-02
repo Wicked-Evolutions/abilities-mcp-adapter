@@ -158,6 +158,25 @@ final class ScopeRegistry {
 			'settings', 'users', 'filesystem', 'plugins', 'cron', 'multisite', 'themes', 'rewrite',
 		];
 		$suite_modules         = [ 'spectra', 'presto-player', 'surecart', 'astra' ];
+		// Fluent suite — per-module scopes for principled operator granularity (#74).
+		// Each slug matches an abilities-for-fluent-plugins category; the OAuth
+		// scope enforcer derives `abilities:<category>:<op>` from
+		// WP_Ability::get_category(), so adding the scopes here is sufficient —
+		// no abilities-side wiring change is needed.
+		$fluent_modules        = [
+			'fluent-crm',
+			'fluent-community',
+			'fluent-forms',
+			'fluent-support',
+			'fluent-boards',
+			'fluent-booking',
+			'fluent-smtp',
+			'fluent-auth',
+			'fluent-snippets',
+			'fluent-messaging',
+			'fluent-cart',
+			'fluent-affiliate',
+		];
 
 		$scopes = [ 'abilities:read', 'abilities:write', 'abilities:delete' ];
 
@@ -179,6 +198,17 @@ final class ScopeRegistry {
 			$scopes[] = "abilities:{$m}:write";
 			$scopes[] = "abilities:{$m}:delete";
 		}
+		foreach ( $fluent_modules as $m ) {
+			$scopes[] = "abilities:{$m}:read";
+			$scopes[] = "abilities:{$m}:write";
+			$scopes[] = "abilities:{$m}:delete";
+		}
+		// Cross-module Fluent — unified user view, suite dashboard, engagement
+		// scoring, multi-product onboarding. Distinct from the per-module
+		// scopes above; not an umbrella over them.
+		$scopes[] = 'abilities:fluent:read';
+		$scopes[] = 'abilities:fluent:write';
+		$scopes[] = 'abilities:fluent:delete';
 		$scopes[] = 'abilities:mcp-adapter:read';
 		$scopes[] = 'abilities:mcp-adapter:write';
 
