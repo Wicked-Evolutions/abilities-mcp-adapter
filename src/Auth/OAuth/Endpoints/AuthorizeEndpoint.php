@@ -46,6 +46,7 @@ use WickedEvolutions\McpAdapter\Auth\OAuth\Consent\PriorGrantLookup;
 use WickedEvolutions\McpAdapter\Auth\OAuth\Consent\RenderedScopeNonce;
 use WickedEvolutions\McpAdapter\Auth\OAuth\Consent\RoleSelector;
 use WickedEvolutions\McpAdapter\Auth\OAuth\DiscoveryEndpoints;
+use WickedEvolutions\McpAdapter\Auth\OAuth\McpResourcePath;
 
 /**
  * Top-level dispatcher for /oauth/authorize. Pre-WP — exits with `never`.
@@ -406,7 +407,7 @@ final class AuthorizeEndpoint {
 	/** This site's resource indicator URL (mirrors AuthorizationServer::authenticate_bearer's binding). */
 	private static function resource_indicator(): string {
 		return function_exists( 'rest_url' )
-			? rest_url( 'mcp/mcp-adapter-default-server' )
+			? rest_url( McpResourcePath::PATH )
 			: DiscoveryEndpoints::resource_url();
 	}
 }

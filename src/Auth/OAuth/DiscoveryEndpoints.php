@@ -20,10 +20,12 @@ namespace WickedEvolutions\McpAdapter\Auth\OAuth;
  */
 final class DiscoveryEndpoints {
 
-	/** REST namespace used by the MCP adapter. */
-	private const MCP_NAMESPACE = 'mcp';
-	private const MCP_ROUTE     = 'mcp-adapter-default-server';
-	private const OAUTH_REST_NS = 'mcp'; // OAuth endpoints under same namespace as MCP.
+	/**
+	 * OAuth REST namespace. Currently coincident with the MCP namespace
+	 * (see {@see McpResourcePath::REST_NAMESPACE}) but kept independent so
+	 * OAuth endpoints can move without dragging the MCP route name.
+	 */
+	private const OAUTH_REST_NS = 'mcp';
 
 	/**
 	 * Compute the issuer URL from HTTP_HOST (timing-safe, avoids home_url() at init priority 0).
@@ -55,7 +57,7 @@ final class DiscoveryEndpoints {
 	 * @param string|null $path_prefix Path-style multisite prefix (see issuer()).
 	 */
 	public static function resource_url( ?string $path_prefix = null ): string {
-		return self::issuer( $path_prefix ) . '/wp-json/' . self::MCP_NAMESPACE . '/' . self::MCP_ROUTE;
+		return self::issuer( $path_prefix ) . '/wp-json/' . McpResourcePath::PATH;
 	}
 
 	/**

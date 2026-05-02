@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Tech-debt
+- **MCP route lifted to a single source of truth.** Previously the path `mcp/mcp-adapter-default-server` was hard-coded across `AuthorizationServer`, `AuthorizeEndpoint`, `DiscoveryEndpoints`, and `helpers.php` (six callsites across four files). Drift between callsites would silently narrow Bearer auth or break resource validation. New `McpResourcePath` value class exposes `REST_NAMESPACE`, `ROUTE`, `PATH` (no leading slash, for `rest_url()`), and `LEADING_SLASH_PATH` (for REQUEST_URI / rest_route compares). All production callsites now consume the constants; a future rename touches one file. Behavior-preserving refactor — all 855 existing tests stay green; 4 new tests pin the constant values. (#54)
+
 ### Performance / tech-debt
 - **L-2: `TokenStore::touch()` no longer issues a synchronous `UPDATE` per request.** Previously every authenticated MCP request blocked on a `wpdb->update` of `last_used_at` on the access-token table — a hot row under burst load. `touch()` now stamps a per-request in-memory buffer keyed by `token_hash` and registers a `register_shutdown_function` flush on first use. Multiple touches for the same token within one request coalesce into one UPDATE; distinct tokens flush as N UPDATEs after the response is sent. Cross-request batching (transient + cron flush, issue body's Option A) is intentionally not introduced — the simpler shutdown-flush refactor is sufficient at current scale and leaves Option A as a future move without changing the `touch()` API. (#67)
 
