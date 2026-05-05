@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.4.5] - Unreleased
+## [1.4.5] - 2026-05-05
 
 Public Alpha Hardening release — fixes from the GPT 5.5 codebase review (2026-05-04).
 
