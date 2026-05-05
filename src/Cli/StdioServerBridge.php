@@ -190,10 +190,16 @@ class StdioServerBridge {
 				);
 			}
 
-			// Extract request components
-			$method = $request['method'] ?? null;
-			$params = $request['params'] ?? array();
-			$id     = $request['id'] ?? null;
+			// Extract request components.
+			// #89: distinguish "id member absent (notification — no response)"
+			// from "id member present with null value (request — must respond)"
+			// via array_key_exists. Pre-fix `$request['id'] ?? null` collapsed
+			// both into null and treated them as notifications, hanging
+			// spec-compliant clients that send id:null waiting for a reply.
+			$method   = $request['method'] ?? null;
+			$params   = $request['params'] ?? array();
+			$id_state = self::request_id_state( $request );
+			$id       = $id_state['id'];
 
 			if ( ! is_string( $method ) ) {
 				return $this->create_error_response(
@@ -227,8 +233,9 @@ class StdioServerBridge {
 				: null;
 			$result = ResponseRedactionGate::apply( $result, $method, $params, $id, $observability_handler );
 
-			// If this is a notification (no id), don't send a response
-			if ( null === $id ) {
+			// Suppress response only when the id member was absent (notification).
+			// id:null is still a request and requires a response per JSON-RPC §4.
+			if ( ! $id_state['has_id'] ) {
 				return '';
 			}
 
@@ -243,6 +250,36 @@ class StdioServerBridge {
 				$e->getMessage()
 			);
 		}
+	}
+
+	/**
+	 * Determine the JSON-RPC id state for a parsed request array.
+	 *
+	 * JSON-RPC 2.0 §4 distinguishes two structurally similar but semantically
+	 * distinct cases that the previous `$request['id'] ?? null` extraction
+	 * collapsed:
+	 *
+	 *   - `id` member ABSENT     → notification; the server MUST NOT respond.
+	 *   - `id` member PRESENT, null → request with literal null id;
+	 *                                 the server MUST respond with id:null.
+	 *
+	 * Pre-#89 the bridge treated both as notifications, causing spec-compliant
+	 * clients sending id:null to hang. This helper returns the explicit
+	 * boolean so callers can branch on member presence rather than value.
+	 *
+	 * Public+static so tests can pin the contract without standing up the
+	 * full bridge (which has McpServer + RequestRouter constructor deps).
+	 * The helper is otherwise stateless and side-effect-free.
+	 *
+	 * @param array $request Parsed JSON-RPC request object.
+	 * @return array{has_id: bool, id: mixed}
+	 */
+	public static function request_id_state( array $request ): array {
+		$has_id = array_key_exists( 'id', $request );
+		return array(
+			'has_id' => $has_id,
+			'id'     => $has_id ? $request['id'] : null,
+		);
 	}
 
 	/**
