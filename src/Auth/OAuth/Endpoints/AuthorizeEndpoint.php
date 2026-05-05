@@ -56,12 +56,22 @@ final class AuthorizeEndpoint {
 	/** Lifetime of an issued authorization code (seconds). */
 	private const CODE_TTL = 600;
 
-	/** Dispatch by request method. */
-	public static function dispatch(): never {
+	/**
+	 * Dispatch by request method.
+	 *
+	 * @param string|null $path_prefix Path-style multisite prefix extracted by
+	 *                                 the pre-WP interceptor (e.g. '/sub2');
+	 *                                 null for single-site or subdomain-style
+	 *                                 multisite. Threaded through self-post,
+	 *                                 login-redirect, and resource-indicator
+	 *                                 URLs so they match the URL the client
+	 *                                 followed from discovery metadata.
+	 */
+	public static function dispatch( ?string $path_prefix = null ): never {
 		$method = strtoupper( (string) ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) );
 		match ( $method ) {
-			'GET'  => self::handle_get( $_GET ),
-			'POST' => self::handle_post( $_POST ),
+			'GET'  => self::handle_get( $_GET, $path_prefix ),
+			'POST' => self::handle_post( $_POST, $path_prefix ),
 			default => self::reject_method(),
 		};
 	}
@@ -80,10 +90,11 @@ final class AuthorizeEndpoint {
 	 * GET handler — validates per H.3.6, then dispatches to login redirect,
 	 * auto-approve, or consent screen.
 	 *
-	 * @param array $params Raw query string.
+	 * @param array       $params      Raw query string.
+	 * @param string|null $path_prefix Path-style multisite prefix; see dispatch().
 	 */
-	public static function handle_get( array $params ): never {
-		$resource_indicator = self::resource_indicator();
+	public static function handle_get( array $params, ?string $path_prefix = null ): never {
+		$resource_indicator = self::resource_indicator( $path_prefix );
 		$validation         = AuthorizeRequestValidator::validate( $params, $resource_indicator );
 
 		if ( $validation->is_pre_redirect_error() ) {
@@ -110,7 +121,7 @@ final class AuthorizeEndpoint {
 		// Validation passed. From here, the request can be redirected to wp-login safely
 		// (the redirect_uri itself is now known good — H.3.6 line 7 reached).
 		if ( ! is_user_logged_in() ) {
-			self::redirect_to_login();
+			self::redirect_to_login( $path_prefix );
 		}
 
 		$user_id = (int) get_current_user_id();
@@ -133,7 +144,7 @@ final class AuthorizeEndpoint {
 		}
 
 		// Render full or incremental consent.
-		self::render_consent( $validation, $decision, $user_id, $last_interactive );
+		self::render_consent( $validation, $decision, $user_id, $last_interactive, $path_prefix );
 	}
 
 	/**
@@ -198,7 +209,8 @@ final class AuthorizeEndpoint {
 		AuthorizeValidationResult $validation,
 		ConsentDecision $decision,
 		int $user_id,
-		?int $last_interactive_unix
+		?int $last_interactive_unix,
+		?string $path_prefix = null
 	): never {
 		$client = $validation->client;
 		$user   = function_exists( 'get_userdata' ) ? get_userdata( $user_id ) : null;
@@ -208,7 +220,7 @@ final class AuthorizeEndpoint {
 
 		$available_roles = RoleSelector::roles_for_user_id( $user_id );
 
-		$action_url = self::self_url();
+		$action_url = self::self_url( $path_prefix );
 
 		ConsentScreenRenderer::render( array(
 			'client_id'                  => (string) $client->client_id,
@@ -238,15 +250,16 @@ final class AuthorizeEndpoint {
 	 * Re-checks scope subset against the server-issued nonce (H.4.5).
 	 * Re-checks role membership against the user's actual roles (H.4.5).
 	 *
-	 * @param array $params Raw $_POST.
+	 * @param array       $params      Raw $_POST.
+	 * @param string|null $path_prefix Path-style multisite prefix; see dispatch().
 	 */
-	public static function handle_post( array $params ): never {
+	public static function handle_post( array $params, ?string $path_prefix = null ): never {
 		// Operator must be logged in to post the consent form.
 		if ( ! is_user_logged_in() ) {
-			self::redirect_to_login();
+			self::redirect_to_login( $path_prefix );
 		}
 
-		$resource_indicator = self::resource_indicator();
+		$resource_indicator = self::resource_indicator( $path_prefix );
 		$validation         = AuthorizeRequestValidator::validate( $params, $resource_indicator );
 
 		if ( $validation->is_pre_redirect_error() ) {
@@ -364,13 +377,13 @@ final class AuthorizeEndpoint {
 	// ─── Redirect helpers ────────────────────────────────────────────────────────
 
 	/** Redirect to wp-login.php with `redirect_to` set back to this exact authorize URL (H.3.6 same-origin note). */
-	private static function redirect_to_login(): never {
-		$self = self::self_url() . ( isset( $_SERVER['QUERY_STRING'] ) && '' !== (string) $_SERVER['QUERY_STRING']
+	private static function redirect_to_login( ?string $path_prefix = null ): never {
+		$self = self::self_url( $path_prefix ) . ( isset( $_SERVER['QUERY_STRING'] ) && '' !== (string) $_SERVER['QUERY_STRING']
 			? '?' . (string) $_SERVER['QUERY_STRING']
 			: '' );
 		$login_url = function_exists( 'wp_login_url' )
 			? wp_login_url( $self )
-			: ( DiscoveryEndpoints::issuer() . '/wp-login.php?redirect_to=' . rawurlencode( $self ) );
+			: ( DiscoveryEndpoints::issuer( $path_prefix ) . '/wp-login.php?redirect_to=' . rawurlencode( $self ) );
 
 		status_header( 302 );
 		header( 'Location: ' . $login_url );
@@ -412,13 +425,30 @@ final class AuthorizeEndpoint {
 		exit;
 	}
 
-	/** The canonical /oauth/authorize URL on this site, for self-posting + redirect_to. */
-	private static function self_url(): string {
-		return DiscoveryEndpoints::issuer() . '/oauth/authorize';
+	/**
+	 * The canonical /oauth/authorize URL on this site, for self-posting + redirect_to.
+	 *
+	 * Path-style multisite: when the request arrived at /<prefix>/oauth/authorize,
+	 * the self-post URL must include the same prefix so the consent form posts
+	 * back to the same subsite-scoped URL the client followed from discovery.
+	 */
+	private static function self_url( ?string $path_prefix = null ): string {
+		return DiscoveryEndpoints::issuer( $path_prefix ) . '/oauth/authorize';
 	}
 
-	/** This site's resource indicator URL (mirrors AuthorizationServer::authenticate_bearer's binding). */
-	private static function resource_indicator(): string {
+	/**
+	 * This site's resource indicator URL (mirrors AuthorizationServer::authenticate_bearer's binding).
+	 *
+	 * Path-style multisite: rest_url() runs pre-WP and may not yet have resolved
+	 * the subsite from the request path, so it can return the network-root URL
+	 * even when the request is for a path-style subsite. When a prefix is
+	 * supplied, build the resource URL explicitly via DiscoveryEndpoints so it
+	 * matches what the subsite's discovery metadata advertised.
+	 */
+	private static function resource_indicator( ?string $path_prefix = null ): string {
+		if ( null !== $path_prefix && '' !== $path_prefix ) {
+			return DiscoveryEndpoints::resource_url( $path_prefix );
+		}
 		return function_exists( 'rest_url' )
 			? rest_url( McpResourcePath::PATH )
 			: DiscoveryEndpoints::resource_url();

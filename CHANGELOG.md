@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.5] - Unreleased
+
+Public Alpha Hardening release — fixes from the GPT 5.5 codebase review (2026-05-04).
+
+### Known limitation
+
+- **Path-style multisite is not yet end-to-end verified.** Subdomain-style multisite is the binding alpha gate. Code paths for path-style subsites are exercised by unit tests, but a full discovery → consent → code → token flow on a path-style network has not been run because no path-style multisite test environment is currently available. Building/locating one is a follow-up infrastructure task; subdomain-style multisite is unaffected.
+
+### Bug — High
+
+- **#90: Subsite authorize endpoint now dispatches under any path-style prefix.** `AuthorizationServer::intercept_pre_wp_routes()` previously only matched the exact root path `/oauth/authorize`, so a path-style subsite client following its own discovery metadata (which advertises `https://example.com/<prefix>/oauth/authorize`) fell through to WP/404 before consent. The interceptor now matches any path ending in `/oauth/authorize` and threads the leading prefix into `AuthorizeEndpoint::dispatch()` → `handle_get` / `handle_post`. The self-post URL, `wp_login_url()` redirect target, and resource indicator now all carry the same prefix, so the URLs match what the subsite's discovery metadata advertised. Single-site and subdomain-style multisite are unchanged. M-5 (#60) addressed the same gap on the `.well-known/*` discovery paths but did not extend the fix to `/oauth/authorize`; #90 closes the remaining half. (#90)
+
 ## [1.4.4] - 2026-05-02
 
 ### Test infra

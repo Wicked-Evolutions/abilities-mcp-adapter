@@ -213,8 +213,13 @@ final class AuthorizationServer {
 		} elseif ( str_starts_with( $path, '/.well-known/openid-configuration' ) ) {
 			$prefix = self::extract_path_prefix( $path, '/.well-known/openid-configuration' );
 			DiscoveryEndpoints::serve_oidc_configuration( $prefix );
-		} elseif ( $path === '/oauth/authorize' ) {
-			AuthorizeEndpoint::dispatch();
+		} elseif ( str_ends_with( $path, '/oauth/authorize' ) ) {
+			// Path-style multisite: discovery metadata for /sub2 advertises
+			// https://example.com/sub2/oauth/authorize. Match any path ending
+			// in /oauth/authorize and pass the leading prefix (or null for
+			// root) into the authorize handler so self-post / login-redirect
+			// / resource-indicator URLs match what discovery promised.
+			AuthorizeEndpoint::dispatch( self::extract_authorize_path_prefix( $path ) );
 		}
 	}
 
@@ -241,6 +246,41 @@ final class AuthorizationServer {
 			return null;
 		}
 		return $tail;
+	}
+
+	/**
+	 * Extract the subsite path prefix from an authorize-endpoint request path.
+	 *
+	 * Mirrors {@see extract_path_prefix()} but anchored at the suffix
+	 * '/oauth/authorize' rather than a known leading prefix:
+	 *   '/oauth/authorize'        → null     (root site)
+	 *   '/sub2/oauth/authorize'   → '/sub2'  (path-style subsite)
+	 *   '/team/blog/oauth/authorize' → '/team/blog'
+	 *
+	 * Caller must already have confirmed the path ends in '/oauth/authorize'
+	 * (the interceptor uses str_ends_with as the guard before calling this).
+	 *
+	 * Prefix validation matches the discovery side: any non-empty leading
+	 * segment that begins with '/' is accepted. Whether the prefix maps to
+	 * an actual subsite is a downstream concern (WP resolves blog ID from
+	 * host+path); this helper is a URL-construction aid only.
+	 *
+	 * @param string $full_path The full request path (no query string).
+	 * @return string|null The leading path segment(s), or null for root sites.
+	 */
+	public static function extract_authorize_path_prefix( string $full_path ): ?string {
+		$suffix = '/oauth/authorize';
+		if ( ! str_ends_with( $full_path, $suffix ) ) {
+			return null;
+		}
+		$head = substr( $full_path, 0, -strlen( $suffix ) );
+		if ( $head === '' ) {
+			return null;
+		}
+		if ( ! str_starts_with( $head, '/' ) ) {
+			return null;
+		}
+		return $head;
 	}
 
 	public static function is_well_known_or_oauth_path(): bool {
