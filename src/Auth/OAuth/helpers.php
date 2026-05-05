@@ -19,17 +19,30 @@ declare( strict_types=1 );
 
 if ( ! function_exists( 'oauth_client_ip' ) ) {
 	/**
-	 * Return the client IP, respecting trusted proxy headers only when
-	 * WP_OAUTH_TRUST_FORWARDED_HOST is defined and true (H.2.5).
+	 * Return the client IP, respecting forwarded headers only when (a) the
+	 * operator has opted in via WP_OAUTH_TRUST_FORWARDED_HOST AND (b) the
+	 * connecting REMOTE_ADDR is in the trusted-proxy allowlist.
+	 *
+	 * Pre-#91: the constant gate alone honored X-Forwarded-For unconditionally,
+	 * so any caller could rotate spoofed values to bypass DCR/revoke rate-limit
+	 * caps that bucket on this helper. Now delegates to TrustedProxyResolver,
+	 * which gates forwarded headers on REMOTE_ADDR being in the trusted-proxy
+	 * allowlist (Cloudflare CIDRs or operator's custom list configured via the
+	 * Safety Settings UI). Spoof bypass closed: callers from untrusted source
+	 * IPs see REMOTE_ADDR (the bucketing key), not the spoofed header.
+	 *
+	 * The outer WP_OAUTH_TRUST_FORWARDED_HOST gate is preserved for backward-
+	 * compatibility — operators who never opted in see zero behavior change;
+	 * operators who opted in but never configured trusted-proxy mode now
+	 * silently get the safe path (REMOTE_ADDR), which is exactly the bypass
+	 * closure #91 calls for.
 	 */
 	function oauth_client_ip(): string {
-		if ( defined( 'WP_OAUTH_TRUST_FORWARDED_HOST' ) && WP_OAUTH_TRUST_FORWARDED_HOST ) {
-			$forwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
-			if ( $forwarded ) {
-				return trim( explode( ',', $forwarded )[0] );
-			}
+		if ( ! defined( 'WP_OAUTH_TRUST_FORWARDED_HOST' ) || ! WP_OAUTH_TRUST_FORWARDED_HOST ) {
+			return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 		}
-		return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+		$resolved = \WickedEvolutions\McpAdapter\RateLimit\TrustedProxyResolver::resolve( $_SERVER );
+		return '' !== $resolved ? $resolved : ( $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0' );
 	}
 }
 
