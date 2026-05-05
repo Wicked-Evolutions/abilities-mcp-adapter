@@ -71,6 +71,13 @@ final class AuthorizationServer {
 		// Bearer token authentication (priority 20 — after WP core's auth).
 		add_filter( 'determine_current_user', [ self::class, 'authenticate_bearer' ], 20 );
 
+		// #88: downgrade effective caps to the operator-selected role for the
+		// OAuth-bound user when the request carries a token issued from
+		// interactive consent. Filter is registered unconditionally — it
+		// fast-paths to pass-through when the request is not OAuth or when
+		// no role downgrade was selected.
+		add_filter( 'user_has_cap', [ SelectedRoleEnforcer::class, 'apply' ], 10, 4 );
+
 		// Reset OAuthRequestContext at the start of every WP-bootstrapped request,
 		// REST or otherwise (M-2). Priority 0 fires before any other init handler
 		// could read the singleton. The duplicate rest_api_init wiring is kept so
@@ -89,7 +96,10 @@ final class AuthorizationServer {
 	/** Run DB migration if schema version has changed. */
 	public static function maybe_run_migration(): void {
 		$version_key = 'abilities_oauth_db_version';
-		$current     = '1.1.0'; // 1.1.0: refresh replay blob columns (C-2).
+		// 1.0.0: initial four-table schema.
+		// 1.1.0: refresh replay blob columns (C-2).
+		// 1.2.0: selected_role on codes / access tokens / refresh tokens (#88).
+		$current = '1.2.0';
 
 		if ( get_option( $version_key ) === $current ) {
 			return;
@@ -132,6 +142,7 @@ final class AuthorizationServer {
 			resource              VARCHAR(2048)   NOT NULL DEFAULT '',
 			code_challenge        VARCHAR(128)    NOT NULL,
 			code_challenge_method VARCHAR(8)      NOT NULL DEFAULT 'S256',
+			selected_role         VARCHAR(64)     NOT NULL DEFAULT '',
 			expires_at            DATETIME        NOT NULL,
 			used                  TINYINT(1)      NOT NULL DEFAULT 0,
 			created_at            DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -141,17 +152,18 @@ final class AuthorizationServer {
 		) {$charset} ENGINE=InnoDB;" );
 
 		dbDelta( "CREATE TABLE `{$p}kl_oauth_tokens` (
-			id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-			token_hash   VARCHAR(64)     NOT NULL,
-			client_id    VARCHAR(128)    NOT NULL,
-			user_id      BIGINT UNSIGNED NOT NULL,
-			scope        TEXT            NOT NULL DEFAULT '',
-			resource     VARCHAR(2048)   NOT NULL DEFAULT '',
-			token_type   VARCHAR(16)     NOT NULL DEFAULT 'Bearer',
-			expires_at   DATETIME        NOT NULL,
-			revoked      TINYINT(1)      NOT NULL DEFAULT 0,
-			last_used_at DATETIME                 DEFAULT NULL,
-			created_at   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			token_hash    VARCHAR(64)     NOT NULL,
+			client_id     VARCHAR(128)    NOT NULL,
+			user_id       BIGINT UNSIGNED NOT NULL,
+			scope         TEXT            NOT NULL DEFAULT '',
+			resource      VARCHAR(2048)   NOT NULL DEFAULT '',
+			token_type    VARCHAR(16)     NOT NULL DEFAULT 'Bearer',
+			selected_role VARCHAR(64)     NOT NULL DEFAULT '',
+			expires_at    DATETIME        NOT NULL,
+			revoked       TINYINT(1)      NOT NULL DEFAULT 0,
+			last_used_at  DATETIME                 DEFAULT NULL,
+			created_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (id),
 			UNIQUE KEY token_hash (token_hash),
 			KEY client_id (client_id)
@@ -166,6 +178,7 @@ final class AuthorizationServer {
 			scope            TEXT            NOT NULL DEFAULT '',
 			resource         VARCHAR(2048)   NOT NULL DEFAULT '',
 			family_id        VARCHAR(64)     NOT NULL,
+			selected_role    VARCHAR(64)     NOT NULL DEFAULT '',
 			expires_at       DATETIME        NOT NULL,
 			revoked          TINYINT(1)      NOT NULL DEFAULT 0,
 			rotated_at       DATETIME                 DEFAULT NULL,
@@ -180,7 +193,20 @@ final class AuthorizationServer {
 		) {$charset} ENGINE=InnoDB;" );
 	}
 
-	/** Pre-WP init priority 0: intercept .well-known and /oauth/authorize. */
+	/**
+	 * Pre-WP init priority 0: intercept .well-known and /oauth/authorize.
+	 *
+	 * Why only these two endpoints — and not /oauth/{token,register,revoke}:
+	 *   This interceptor handles routes that need to respond *before* WordPress
+	 *   has booted (discovery metadata for clients that haven't authenticated
+	 *   yet, and the authorize endpoint that itself drives login). The OAuth
+	 *   token, register, and revoke endpoints are registered as REST routes
+	 *   via register_rest_route() and dispatched after WP rewrite resolves the
+	 *   subsite from the URL — so WordPress's own REST router handles
+	 *   path-style multisite prefixes natively for those three endpoints. No
+	 *   prefix extraction is needed for the REST-side endpoints because their
+	 *   handlers run with the subsite already bootstrapped.
+	 */
 	public static function intercept_pre_wp_routes(): void {
 		$host = $_SERVER['HTTP_HOST'] ?? '';
 		if ( ! OAuthHostAllowlist::is_allowed( $host ) ) {
@@ -469,13 +495,18 @@ final class AuthorizationServer {
 		}
 
 		// All checks passed — populate OAuthRequestContext (H.1.3).
-		$scopes = array_filter( explode( ' ', (string) $row->scope ) );
+		// selected_role (#88) carries the operator's consent-time role choice
+		// through to SelectedRoleEnforcer's user_has_cap filter so the bound
+		// user's effective caps are scoped to that role for the request.
+		$scopes        = array_filter( explode( ' ', (string) $row->scope ) );
+		$selected_role = isset( $row->selected_role ) ? (string) $row->selected_role : '';
 		OAuthRequestContext::set(
 			(int) $row->user_id,
 			$scopes,
 			(string) $row->resource,
 			(string) $row->client_id,
-			(int) $row->id
+			(int) $row->id,
+			$selected_role
 		);
 
 		// Update last_used_at (fire-and-forget).

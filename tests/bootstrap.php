@@ -736,6 +736,18 @@ if ( ! function_exists( 'get_userdata' ) ) {
 	}
 }
 
+// Minimal wp_roles() stub (#88). Backed by $GLOBALS['wp_test_roles'], which
+// tests can populate with `[role_slug => ['name' => ..., 'capabilities' => [...]]]`.
+// Returns an object with the same `roles` shape WordPress core exposes via
+// the global WP_Roles singleton.
+if ( ! function_exists( 'wp_roles' ) ) {
+	function wp_roles() {
+		$obj = new stdClass();
+		$obj->roles = (array) ( $GLOBALS['wp_test_roles'] ?? array() );
+		return $obj;
+	}
+}
+
 // ---- WordPress constants (if not already defined by the test environment). ----
 if ( ! defined( 'DAY_IN_SECONDS' ) )  { define( 'DAY_IN_SECONDS',  86400 ); }
 if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }

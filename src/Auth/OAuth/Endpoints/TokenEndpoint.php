@@ -73,12 +73,19 @@ final class TokenEndpoint {
 			\token_error( 'invalid_grant', 'Authorization code is invalid, expired, or already used.', 400 );
 		}
 
-		// Issue token pair.
+		// Issue token pair. Carry through any operator-selected role from
+		// consent (#88) — empty string when the user is single-role or when
+		// the code came from an auto-approve flow (no consent form rendered).
+		$selected_role = isset( $code_row->selected_role ) ? (string) $code_row->selected_role : '';
 		$token = TokenStore::issue(
 			$client_id,
 			(int) $code_row->user_id,
 			$code_row->scope,
-			$code_row->resource
+			$code_row->resource,
+			TokenStore::ACCESS_TTL,
+			TokenStore::REFRESH_TTL,
+			null,
+			$selected_role
 		);
 
 		\oauth_log_boundary( 'boundary.oauth_token_issued', [
