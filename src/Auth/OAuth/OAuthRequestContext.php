@@ -25,14 +25,24 @@ final class OAuthRequestContext {
 	/**
 	 * Populate context after successful bearer token validation.
 	 *
-	 * @param int    $user_id   WP user the token is bound to.
-	 * @param array  $scopes    Granted scope strings.
-	 * @param string $resource  Resource URL the token was issued for.
-	 * @param string $client_id DCR-issued client identifier.
-	 * @param int    $token_id  Row ID from kl_oauth_tokens.
+	 * @param int    $user_id       WP user the token is bound to.
+	 * @param array  $scopes        Granted scope strings.
+	 * @param string $resource      Resource URL the token was issued for.
+	 * @param string $client_id     DCR-issued client identifier.
+	 * @param int    $token_id      Row ID from kl_oauth_tokens.
+	 * @param string $selected_role Operator-selected role slug from consent (#88).
+	 *                              Empty string when no downgrade was selected
+	 *                              (single-role operator or auto-approve path).
 	 */
-	public static function set( int $user_id, array $scopes, string $resource, string $client_id, int $token_id ): void {
-		self::$current = compact( 'user_id', 'scopes', 'resource', 'client_id', 'token_id' );
+	public static function set(
+		int $user_id,
+		array $scopes,
+		string $resource,
+		string $client_id,
+		int $token_id,
+		string $selected_role = ''
+	): void {
+		self::$current = compact( 'user_id', 'scopes', 'resource', 'client_id', 'token_id', 'selected_role' );
 	}
 
 	/** Whether the current request was authenticated via an OAuth bearer token. */
@@ -60,6 +70,19 @@ final class OAuthRequestContext {
 
 	public static function resource(): ?string {
 		return self::$current['resource'] ?? null;
+	}
+
+	/**
+	 * Operator-selected role slug from consent. Empty string when not an OAuth
+	 * request, when the operator was single-role, or when the token was issued
+	 * via the auto-approve path (which currently does not carry the prior
+	 * consent's role — see CHANGELOG known limitation, follow-up issue #94).
+	 *
+	 * Consumed by SelectedRoleEnforcer to downgrade effective capabilities
+	 * for the OAuth-bound user during request handling (#88).
+	 */
+	public static function selected_role(): string {
+		return (string) ( self::$current['selected_role'] ?? '' );
 	}
 
 	/** Clear — call at the start of each request in test contexts. */

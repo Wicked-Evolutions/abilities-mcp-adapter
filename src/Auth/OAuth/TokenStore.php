@@ -49,12 +49,17 @@ final class TokenStore {
 	 *
 	 * @param string      $client_id
 	 * @param int         $user_id
-	 * @param string      $scope       Space-separated scope string (umbrella-expanded).
-	 * @param string      $resource    Resource indicator URL.
-	 * @param int         $access_ttl  Override access TTL (seconds).
-	 * @param int         $refresh_ttl Override refresh TTL (seconds).
-	 * @param string|null $family_id   Existing family ID to inherit (rotation path).
-	 *                                 Null generates a fresh family ID (initial issuance).
+	 * @param string      $scope         Space-separated scope string (umbrella-expanded).
+	 * @param string      $resource      Resource indicator URL.
+	 * @param int         $access_ttl    Override access TTL (seconds).
+	 * @param int         $refresh_ttl   Override refresh TTL (seconds).
+	 * @param string|null $family_id     Existing family ID to inherit (rotation path).
+	 *                                   Null generates a fresh family ID (initial issuance).
+	 * @param string      $selected_role Role slug the operator chose at consent
+	 *                                   (#88). Empty string = no downgrade (single-
+	 *                                   role op or auto-approve path). Persisted on
+	 *                                   both access + refresh rows so rotation
+	 *                                   inherits it without re-consulting the code.
 	 * @return array{access_token: string, token_type: string, refresh_token: string, expires_in: int, scope: string}
 	 */
 	public static function issue(
@@ -62,9 +67,10 @@ final class TokenStore {
 		int     $user_id,
 		string  $scope,
 		string  $resource,
-		int     $access_ttl  = self::ACCESS_TTL,
-		int     $refresh_ttl = self::REFRESH_TTL,
-		?string $family_id   = null
+		int     $access_ttl    = self::ACCESS_TTL,
+		int     $refresh_ttl   = self::REFRESH_TTL,
+		?string $family_id     = null,
+		string  $selected_role = ''
 	): array {
 		global $wpdb;
 
@@ -91,16 +97,17 @@ final class TokenStore {
 			$wpdb->insert(
 				self::access_table(),
 				[
-					'token_hash'  => $access_hash,
-					'client_id'   => $client_id,
-					'user_id'     => $user_id,
-					'scope'       => $scope,
-					'resource'    => $resource,
-					'expires_at'  => $access_expires,
-					'revoked'     => 0,
-					'created_at'  => $now,
+					'token_hash'    => $access_hash,
+					'client_id'     => $client_id,
+					'user_id'       => $user_id,
+					'scope'         => $scope,
+					'resource'      => $resource,
+					'selected_role' => $selected_role,
+					'expires_at'    => $access_expires,
+					'revoked'       => 0,
+					'created_at'    => $now,
 				],
-				[ '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s' ]
+				[ '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%d', '%s' ]
 			);
 			$access_id = (int) $wpdb->insert_id;
 
@@ -114,11 +121,12 @@ final class TokenStore {
 					'scope'           => $scope,
 					'resource'        => $resource,
 					'family_id'       => $family_id,
+					'selected_role'   => $selected_role,
 					'expires_at'      => $refresh_expires,
 					'revoked'         => 0,
 					'created_at'      => $now,
 				],
-				[ '%s', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%d', '%s' ]
+				[ '%s', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ]
 			);
 
 			$wpdb->query( 'COMMIT' );
@@ -221,8 +229,19 @@ final class TokenStore {
 			return null;
 		}
 
-		// Issue new pair — inherit family_id so replay detection covers the full chain (H.2.1).
-		$new_pair = self::issue( $row->client_id, (int) $row->user_id, $row->scope, $row->resource, self::ACCESS_TTL, self::REFRESH_TTL, $row->family_id );
+		// Issue new pair — inherit family_id so replay detection covers the full chain (H.2.1),
+		// and inherit selected_role so an operator-chosen role downgrade survives token rotation (#88).
+		$inherited_role = isset( $row->selected_role ) ? (string) $row->selected_role : '';
+		$new_pair       = self::issue(
+			$row->client_id,
+			(int) $row->user_id,
+			$row->scope,
+			$row->resource,
+			self::ACCESS_TTL,
+			self::REFRESH_TTL,
+			$row->family_id,
+			$inherited_role
+		);
 		$new_refresh_hash = hash( 'sha256', $new_pair['refresh_token'] );
 
 		// Encrypt the plaintext pair under a key derived from the *old* refresh

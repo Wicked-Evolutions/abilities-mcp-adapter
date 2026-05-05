@@ -81,4 +81,52 @@ final class OAuthRequestContextTest extends TestCase {
 		$this->assertFalse( OAuthRequestContext::is_oauth_request() );
 		$this->assertSame( [], OAuthRequestContext::granted_scopes() );
 	}
+
+	// ---- #88: selected_role -------------------------------------------------
+
+	public function test_selected_role_empty_before_set(): void {
+		$this->assertSame( '', OAuthRequestContext::selected_role() );
+	}
+
+	public function test_selected_role_defaults_empty_when_not_supplied_at_set(): void {
+		// Backwards compatibility: the new selected_role parameter is optional
+		// so existing call sites that haven't been updated keep working with
+		// no role downgrade applied.
+		OAuthRequestContext::set(
+			user_id: 7,
+			scopes: [ 'abilities:read' ],
+			resource: 'https://example.com/wp-json/mcp/x',
+			client_id: 'cl_abc',
+			token_id: 42
+		);
+
+		$this->assertSame( '', OAuthRequestContext::selected_role() );
+	}
+
+	public function test_selected_role_round_trips_through_set(): void {
+		OAuthRequestContext::set(
+			user_id: 7,
+			scopes: [ 'abilities:read' ],
+			resource: 'https://example.com/wp-json/mcp/x',
+			client_id: 'cl_abc',
+			token_id: 42,
+			selected_role: 'editor'
+		);
+
+		$this->assertSame( 'editor', OAuthRequestContext::selected_role() );
+	}
+
+	public function test_selected_role_cleared_by_reset(): void {
+		OAuthRequestContext::set(
+			user_id: 7,
+			scopes: [],
+			resource: '',
+			client_id: '',
+			token_id: 0,
+			selected_role: 'editor'
+		);
+		OAuthRequestContext::reset();
+
+		$this->assertSame( '', OAuthRequestContext::selected_role() );
+	}
 }

@@ -43,6 +43,9 @@ final class AuthorizationCodeStore {
 	 * @param string $resource           Resource indicator URL.
 	 * @param string $code_challenge     PKCE S256 challenge.
 	 * @param int    $ttl_seconds        Default 600 (10 minutes).
+	 * @param string $selected_role      Role slug the operator chose at consent
+	 *                                   (#88). Empty string = no downgrade
+	 *                                   (single-role op or auto-approve path).
 	 * @return bool True on success, false if the insert was rejected by the DB.
 	 */
 	public static function store(
@@ -53,7 +56,8 @@ final class AuthorizationCodeStore {
 		string $scope,
 		string $resource,
 		string $code_challenge,
-		int    $ttl_seconds = 600
+		int    $ttl_seconds = 600,
+		string $selected_role = ''
 	): bool {
 		global $wpdb;
 
@@ -68,11 +72,12 @@ final class AuthorizationCodeStore {
 				'resource'             => $resource,
 				'code_challenge'       => $code_challenge,
 				'code_challenge_method'=> 'S256',
+				'selected_role'        => $selected_role,
 				'expires_at'           => gmdate( 'Y-m-d H:i:s', time() + $ttl_seconds ),
 				'used'                 => 0,
 				'created_at'           => gmdate( 'Y-m-d H:i:s' ),
 			],
-			[ '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ]
+			[ '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ]
 		);
 
 		if ( false === $inserted ) {

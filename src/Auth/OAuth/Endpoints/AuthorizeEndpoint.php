@@ -157,7 +157,8 @@ final class AuthorizeEndpoint {
 		ConsentDecision $decision,
 		int $user_id,
 		bool $interactive,
-		?array $effective_scopes = null
+		?array $effective_scopes = null,
+		string $selected_role = ''
 	): never {
 		$client_id = (string) $validation->client->client_id;
 		$scopes    = $effective_scopes ?? $decision->requested;
@@ -172,7 +173,8 @@ final class AuthorizeEndpoint {
 			$scope_str,
 			$validation->resource,
 			$validation->code_challenge,
-			self::CODE_TTL
+			self::CODE_TTL,
+			$selected_role
 		);
 
 		// M-9: do not redirect with a code the bridge can't redeem. The store
@@ -343,6 +345,12 @@ final class AuthorizeEndpoint {
 
 		// All gates passed. Submitted scope set may be narrower than rendered.
 		// We mint with *the submitted set*, not the originally-requested set.
+		// We also persist the *submitted role* (#88): only minted on this
+		// interactive-consent path, so the operator's deliberate role choice
+		// rides the auth-code → token chain to bearer-auth time.
+		// Auto-approve from handle_get does not reach this branch and therefore
+		// always issues with an empty selected_role (today's behavior, tracked
+		// as a known limitation in CHANGELOG and as a follow-up issue).
 		$decision = new ConsentDecision(
 			ConsentDecision::RENDER_FULL,
 			$validation->requested_scopes,
@@ -351,7 +359,14 @@ final class AuthorizeEndpoint {
 			array(),
 			''
 		);
-		self::mint_code_and_redirect( $validation, $decision, $user_id, /* interactive */ true, $submitted_scopes );
+		self::mint_code_and_redirect(
+			$validation,
+			$decision,
+			$user_id,
+			/* interactive */ true,
+			$submitted_scopes,
+			$submitted_role
+		);
 	}
 
 	/**
