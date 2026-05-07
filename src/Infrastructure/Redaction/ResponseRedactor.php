@@ -9,6 +9,18 @@
  *
  * Matching rules:
  *   - Field-name match is case-insensitive against the canonical keyword lists.
+ *   - Bucket 3 also runs an email-family token matcher (issue #103). Any field key
+ *     whose tokens (split on `_`, `-`, camelCase boundaries) include `email` is
+ *     redacted — `admin_email`, `author_email`, `billingEmail`, `to_email`, etc.
+ *     The substring rule is intentionally scoped to the `email` family only;
+ *     phone / address generalisation is contract-polish work.
+ *   - Schema-metadata paths (`input_schema`, `output_schema`) are exempt from
+ *     redaction (issue #105). Their subtrees describe ability shape, not data,
+ *     so running keyword/substring matching over property names like `email`,
+ *     `username`, `password` would corrupt the cold-AI contract. The exemption
+ *     is path-aware — only the literal `input_schema`/`output_schema` keys
+ *     trigger pass-through; field-name matching resumes below them only when
+ *     the same names appear OUTSIDE a schema subtree.
  *   - When a field name matches, the ENTIRE value at that key is replaced (recursively
  *     untouched — the subtree is redacted as a whole using a type-shape-preserving marker).
  *   - When a field name does NOT match, traversal recurses into arrays/objects and the
@@ -98,6 +110,34 @@ final class ResponseRedactor {
 	private int $node_count = 0;
 
 	/**
+	 * Whether the schema-metadata path exemption (issue #105) is active for
+	 * this redactor instance. Set when the ability that produced the response
+	 * is one of the dispatcher meta-tools that returns ability schemas as
+	 * structural metadata rather than runtime data.
+	 *
+	 * @var bool
+	 */
+	private bool $schema_metadata_exempt;
+
+	/**
+	 * Adapter meta-abilities whose responses describe ability shape (schemas)
+	 * rather than carry runtime data. Issue #105 — `input_schema`/`output_schema`
+	 * keys in these responses pass through redaction unchanged. Slash-form
+	 * canonical names; the adapter routes both meta-tool wrappers and direct
+	 * tools/call against these abilities through {@see ResponseRedactionGate}.
+	 *
+	 * Path-aware (response originates from a meta-ability) AND schema-aware
+	 * (the literal `input_schema`/`output_schema` key) are both required —
+	 * an arbitrary `meta/list-post-meta` response that happens to contain a
+	 * key named `input_schema` is NOT exempt, so PII smuggled through user
+	 * meta cannot bypass redaction.
+	 */
+	private const SCHEMA_METADATA_ABILITIES = array(
+		'mcp-adapter/get-ability-info',
+		'mcp-adapter/discover-abilities',
+	);
+
+	/**
 	 * Build a redactor configured for the given ability call.
 	 *
 	 * @param string|null $ability_name Ability name (e.g. `users/list`), or null when method has no ability.
@@ -110,6 +150,9 @@ final class ResponseRedactor {
 		$master                = RedactionConfig::is_master_enabled();
 		$this->bucket2_active  = $master && ! RedactionConfig::is_ability_exempt( $ability_name, RedactionConfig::BUCKET_PAYMENT );
 		$this->bucket3_active  = $master && ! RedactionConfig::is_ability_exempt( $ability_name, RedactionConfig::BUCKET_CONTACT );
+
+		$this->schema_metadata_exempt = null !== $ability_name
+			&& in_array( $ability_name, self::SCHEMA_METADATA_ABILITIES, true );
 	}
 
 	/**
@@ -178,6 +221,24 @@ final class ResponseRedactor {
 	/**
 	 * Apply field-name matching to a string-keyed entry. On hit, redact the whole subtree.
 	 *
+	 * Order of checks is load-bearing:
+	 *   1. Bucket 1 keyword (secrets — always wins, even inside schema metadata).
+	 *   2. Schema-metadata exemption — `input_schema` / `output_schema` keys
+	 *      pass through verbatim (issue #105). The subtree describes ability
+	 *      shape; running keyword/substring matching over property names there
+	 *      corrupts the schema contract every AI client depends on. Bucket 1
+	 *      stays above this line because a (highly-unlikely) ability that
+	 *      stores a literal secret named e.g. `password` next to a sibling
+	 *      `input_schema` must still redact the secret. The exemption only
+	 *      protects the schema subtree itself — schema-named keys at the
+	 *      top level — not arbitrary keys nested below.
+	 *   3. Bucket 2 / Bucket 3 exact-match keyword.
+	 *   4. Bucket 3 email-family token match — any field whose tokens include
+	 *      `email` (issue #103: `admin_email`, `author_email`, `billingEmail`,
+	 *      `to_email`, etc.). Substring expansion is intentionally scoped to
+	 *      the `email` family only; phone / address generalisation is
+	 *      contract-polish work.
+	 *
 	 * @param string $key   Field name.
 	 * @param mixed  $value Field value.
 	 * @param int    $depth Current depth (for the value; the key itself is at depth-1).
@@ -194,6 +255,11 @@ final class ResponseRedactor {
 			return $this->build_marker( $value, $key, RedactionConfig::BUCKET_SECRETS );
 		}
 
+		if ( $this->schema_metadata_exempt && self::is_schema_metadata_key( $lower ) ) {
+			$this->count_subtree_safe( $value, $depth );
+			return $value;
+		}
+
 		if ( $this->bucket2_active && isset( $this->bucket2_set[ $lower ] ) ) {
 			$this->counts[ RedactionConfig::BUCKET_PAYMENT ]++;
 			return $this->build_marker( $value, $key, RedactionConfig::BUCKET_PAYMENT );
@@ -204,7 +270,77 @@ final class ResponseRedactor {
 			return $this->build_marker( $value, $key, RedactionConfig::BUCKET_CONTACT );
 		}
 
+		if ( $this->bucket3_active && self::is_email_family_token( $key ) ) {
+			$this->counts[ RedactionConfig::BUCKET_CONTACT ]++;
+			return $this->build_marker( $value, $key, RedactionConfig::BUCKET_CONTACT );
+		}
+
 		return $this->process_value( $value, $depth, $key );
+	}
+
+	/**
+	 * Whether the lower-cased key denotes a schema-metadata subtree exempt
+	 * from redaction (issue #105).
+	 *
+	 * Scoped tightly to the two WordPress Abilities API schema fields. Broader
+	 * dispatcher-metadata exemption (e.g. `properties.<*>.description`,
+	 * `properties.<*>.example`) is contract-polish work.
+	 */
+	private static function is_schema_metadata_key( string $lower_key ): bool {
+		return 'input_schema' === $lower_key || 'output_schema' === $lower_key;
+	}
+
+	/**
+	 * Token-based email-family detector (issue #103).
+	 *
+	 * Splits the field name on snake (`_`), kebab (`-`), and camelCase
+	 * boundaries; returns true when any token, lower-cased, equals `email`.
+	 * Catches `email`, `admin_email`, `author_email`, `network_admin_email`,
+	 * `to_email`, `from_email`, `customer_email`, `user_email`,
+	 * `billingEmail`, etc. Does NOT catch unrelated tokens like `emailable`
+	 * or `emails` (the matcher is exact-token, not substring within a token).
+	 *
+	 * Path-aware allowlist exceptions live above (schema-metadata exemption);
+	 * there is no broad field-name allowlist here on purpose — runtime values
+	 * named `admin_email` / `author_email` / `customer_email` etc. must redact
+	 * unconditionally per the alpha-gate acceptance contract.
+	 */
+	private static function is_email_family_token( string $key ): bool {
+		$tokens = preg_split( '/[_\-]|(?<=[a-z])(?=[A-Z])/', $key );
+		if ( false === $tokens ) {
+			return false;
+		}
+		foreach ( $tokens as $token ) {
+			if ( 'email' === strtolower( $token ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Walk a subtree without redacting, but still account against the
+	 * MAX_DEPTH / MAX_NODES limits so a malformed payload can't bypass the
+	 * resource caps via a schema-metadata key.
+	 *
+	 * @throws RedactionLimitExceeded
+	 */
+	private function count_subtree_safe( $value, int $depth ): void {
+		if ( $depth > self::MAX_DEPTH ) {
+			throw new RedactionLimitExceeded( 'max_depth_exceeded' );
+		}
+		if ( is_array( $value ) ) {
+			foreach ( $value as $v ) {
+				if ( ++$this->node_count > self::MAX_NODES ) {
+					throw new RedactionLimitExceeded( 'max_nodes_exceeded' );
+				}
+				$this->count_subtree_safe( $v, $depth + 1 );
+			}
+			return;
+		}
+		if ( is_object( $value ) ) {
+			$this->count_subtree_safe( (array) $value, $depth + 1 );
+		}
 	}
 
 	/**

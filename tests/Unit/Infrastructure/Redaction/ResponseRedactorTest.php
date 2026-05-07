@@ -162,9 +162,14 @@ class ResponseRedactorTest extends TestCase {
 	// ── Implementation acceptance ─────────────────────────────────────────────
 
 	public function test_type_detection_handles_six_type_cases(): void {
+		// Note (issue #103): `email_string` / `email_number` would have passed
+		// through under the original field-name-EQUALS matcher. Substring /
+		// token matching for the email family now redacts any field whose
+		// tokens include `email`, so the pass-through fixtures use unrelated
+		// keys to keep the type-detection assertions about types, not names.
 		$response = array(
-			'email_string' => 'a@b.com',
-			'email_number' => 99,             // not a redaction target by name; included to verify pass-through
+			'note_string'  => 'a@b.com',
+			'note_number'  => 99,              // not a redaction target by name; included to verify pass-through
 			'email'        => 1234,            // numeric value of a redacted field → null
 			'flag'         => true,            // booleans untouched
 			'address'      => (object) array( 'x' => 1 ),
@@ -174,8 +179,8 @@ class ResponseRedactorTest extends TestCase {
 
 		$out = ( new ResponseRedactor() )->redact( $response );
 
-		$this->assertSame( 'a@b.com', $out['email_string'] );        // wrong key → pass.
-		$this->assertSame( 99, $out['email_number'] );               // wrong key → pass.
+		$this->assertSame( 'a@b.com', $out['note_string'] );         // wrong key → pass.
+		$this->assertSame( 99, $out['note_number'] );                // wrong key → pass.
 		$this->assertNull( $out['email'] );                          // numeric of redacted → null.
 		$this->assertTrue( $out['flag'] );
 		$this->assertIsObject( $out['address'] );
