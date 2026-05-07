@@ -72,6 +72,7 @@ final class ScopeRegistry {
 			'abilities:site-health:read',
 			'abilities:diagnostic:read',
 			'abilities:editorial:read',
+			'abilities:site:read',
 			'abilities:mcp-adapter:read',
 		],
 		'abilities:write'  => [
@@ -153,11 +154,28 @@ final class ScopeRegistry {
 			'content', 'taxonomies', 'media', 'menus', 'blocks', 'patterns',
 			'meta', 'comments', 'revisions', 'cache', 'knowledge',
 		];
-		$read_only_modules     = [ 'rest', 'site-health', 'diagnostic', 'editorial' ];
+		// Read-only modules — only `:read` exists; no write/delete operations
+		// are registered for these categories. `site` (#101) sits here next
+		// to `rest`, `site-health`, `diagnostic`, `editorial`: today's
+		// `core/get-site-info` and `core/get-environment-info` are pure
+		// reads; if write/delete site abilities ever land, promote `site`
+		// out of this list and add the missing scopes — the
+		// `ScopeCoverageDriftTest` will fail until they're declared.
+		$read_only_modules     = [ 'rest', 'site-health', 'diagnostic', 'editorial', 'site' ];
 		$sensitive_modules     = [
 			'settings', 'users', 'filesystem', 'plugins', 'cron', 'multisite', 'themes', 'rewrite',
 		];
-		$suite_modules         = [ 'spectra', 'presto-player', 'surecart', 'astra' ];
+		// Suite modules — third-party product surfaces that require explicit
+		// per-suite OAuth grant. NOT covered by `abilities:read` /
+		// `abilities:write` umbrellas (matches the existing pattern for
+		// spectra/presto-player/astra). `surecart-ecommerce` (#102) sits
+		// alongside the existing `surecart` suite scope; the registry
+		// currently surfaces both because abilities-for-fluent-plugins
+		// registers ecommerce abilities under the `surecart-ecommerce`
+		// category while other surecart abilities use `surecart`.
+		// Reconciling the two into a single canonical category is
+		// post-alpha contract-polish work.
+		$suite_modules         = [ 'spectra', 'presto-player', 'surecart', 'surecart-ecommerce', 'astra' ];
 		// Fluent suite — per-module scopes for principled operator granularity (#74).
 		// Each slug matches an abilities-for-fluent-plugins category; the OAuth
 		// scope enforcer derives `abilities:<category>:<op>` from
@@ -214,5 +232,89 @@ final class ScopeRegistry {
 
 		self::$all_scopes = array_values( array_unique( $scopes ) );
 		return self::$all_scopes;
+	}
+
+	/**
+	 * Categories the OAuth scope enforcer would derive `abilities:<category>:<op>`
+	 * from for the given ability list.
+	 *
+	 * Drives the coverage-test side of Principle 9 ("Scope Coverage Is
+	 * Derived Or Coverage-Tested") — the {@see \WickedEvolutions\McpAdapter\Tests\Unit\Auth\OAuth\ScopeCoverageDriftTest}
+	 * compares the categories surfaced by the live registry (via this helper
+	 * over `wp_get_abilities()` or a captured snapshot) against
+	 * {@see self::all_scopes()} and fails on any unmapped category. The CI
+	 * test is the actual safeguard against another `site` (#101) /
+	 * `surecart-ecommerce` (#102) — manual scope-list maintenance alone is
+	 * the drift this principle prevents.
+	 *
+	 * Categories that resolve to the empty string fall back to `mcp-adapter`
+	 * at scope-derivation time (see {@see OAuthScopeEnforcer::category_segment()}).
+	 * The helper preserves the empty bucket as `''` here so the drift test
+	 * can flag empty-category abilities explicitly rather than silently
+	 * masking them as `mcp-adapter`.
+	 *
+	 * @param iterable<int|string,object>|null $abilities Optional ability iterable
+	 *        (each must respond to `get_category()` / `get_meta()` / `get_name()`).
+	 *        Defaults to `wp_get_abilities()` when available; an empty array when
+	 *        the WP Abilities API isn't loaded (unit-test stubs handle this).
+	 * @return string[] Sorted, deduplicated list of category slugs.
+	 */
+	public static function categories_from_registry( ?iterable $abilities = null ): array {
+		if ( null === $abilities ) {
+			if ( ! function_exists( 'wp_get_abilities' ) ) {
+				return array();
+			}
+			$abilities = wp_get_abilities();
+			if ( ! is_array( $abilities ) && ! ( $abilities instanceof \Traversable ) ) {
+				return array();
+			}
+		}
+
+		$categories = array();
+		foreach ( $abilities as $ability ) {
+			if ( ! is_object( $ability ) || ! method_exists( $ability, 'get_category' ) ) {
+				continue;
+			}
+			$slug              = strtolower( trim( (string) $ability->get_category() ) );
+			$categories[ $slug ] = true;
+		}
+
+		$out = array_keys( $categories );
+		sort( $out );
+		return $out;
+	}
+
+	/**
+	 * Whether the given category has at least one scope of any operation
+	 * (`:read` / `:write` / `:delete`) registered.
+	 *
+	 * Used by the drift test to surface unmapped categories.
+	 */
+	public static function has_category_coverage( string $category ): bool {
+		$category = strtolower( trim( $category ) );
+		if ( '' === $category ) {
+			// Empty category falls back to `mcp-adapter` at enforce time;
+			// `mcp-adapter` is always present in the registry.
+			return true;
+		}
+		$prefix = 'abilities:' . $category . ':';
+		foreach ( self::all_scopes() as $scope ) {
+			if ( 0 === strncmp( $scope, $prefix, strlen( $prefix ) ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Test-only seam — clears the cached `all_scopes()` list so a test that
+	 * needs to assert build-from-scratch behaviour can do so. Production
+	 * code never calls this; the cache exists because `all_scopes()` is hot
+	 * on every OAuth request.
+	 *
+	 * @internal
+	 */
+	public static function reset_cache_for_testing(): void {
+		self::$all_scopes = null;
 	}
 }
