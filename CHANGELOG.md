@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.4.7] - 2026-05-08
+
+Documentation update — README rewrite for OAuth resource server + Connected Bridges + layered-permissions surface coverage. Code unchanged from v1.4.6.
+
+### Documentation
+
+- README rewritten end-to-end:
+  - OAuth 2.1 resource server + authorization server endpoints documented (RFC 9728 / 8414 discovery, RFC 7591 DCR, `/oauth/authorize`, `/oauth/token`, `/oauth/revoke`, scope enforcement at every dispatch path, selected-role enforcement)
+  - Connected Bridges admin UI section added — operators manage OAuth client registrations through *WP Admin → Settings → MCP Adapter → Connected Bridges*
+  - Settings → Permissions UI section added (the layered-permissions enforcement layer the adapter contributes to)
+  - PHP version requirement corrected from 8.0+ to 8.2+ (matches `composer.json` `require.php` and plugin header `Requires PHP`)
+  - Boundary event log emit section added — names the v0.1 events the adapter emits (`boundary.session.init`, `boundary.session.terminated`, `boundary.auth.denied`, `boundary.transport.error`, `boundary.rate_limit_hit`)
+  - "Usage with the Abilities MCP bridge" section rewritten to reflect recommended install paths (`.mcpb` install for Claude Desktop + `npm install -g @wickedevolutions/abilities-mcp` for terminal MCP clients) — replaces the obsolete `node /path/to/...` example
+  - New Notes section: four-layer permissions model, paired ability classes, discovery-vs-authorization distinction (`mcp-adapter-discover-abilities` is registration manifest; `suite/get-status` is authorization gate), selected-consent-role-on-refresh tracked on [#94](https://github.com/Wicked-Evolutions/abilities-mcp-adapter/issues/94)
+- Welcome block at top with verbatim *"Welcome, Wordpressnaut"* spaceship paragraph + 3 URL pointers (knowledge.wickedevolutions.com, wickedevolutions.com, abilitiesforai.io)
+- Disclaimer block from J at the very top
+- Pointer to [PRINCIPLES.md](PRINCIPLES.md) as the *Official WordPress Compatibility Contract* binding all four suite repos
+- Existing bottom *Disclaimer* section retired (replaced by J's at top)
+
+Closes [#111](https://github.com/Wicked-Evolutions/abilities-mcp-adapter/issues/111).
+
 ## [1.4.6] - 2026-05-07
 
 Alpha Release Gate hotfix bundle — Phase B.1 of the Alpha Release Gate + Issue Reconciliation 2026-05-07 sprint plan. Three coordinated fixes in a single release: PII redaction tightening, schema-printer correctness, and OAuth scope coverage with a drift test that prevents the same class of bug from re-opening.
