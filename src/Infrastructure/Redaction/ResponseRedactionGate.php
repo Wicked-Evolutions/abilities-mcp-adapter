@@ -70,7 +70,7 @@ final class ResponseRedactionGate {
 		$ability_name = self::extract_ability_name( $method, $params );
 
 		try {
-			$redactor = new ResponseRedactor( $ability_name );
+			$redactor = new ResponseRedactor( $ability_name, $method );
 			$redacted = $redactor->redact( $result );
 			$counts   = $redactor->get_counts();
 		} catch ( RedactionLimitExceeded $e ) {
