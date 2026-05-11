@@ -14,11 +14,14 @@
  *     redacted — `admin_email`, `author_email`, `billingEmail`, `to_email`, etc.
  *     The substring rule is intentionally scoped to the `email` family only;
  *     phone / address generalisation is contract-polish work.
- *   - Schema-metadata paths (`input_schema`, `output_schema`) are exempt from
- *     redaction (issue #105). Their subtrees describe ability shape, not data,
- *     so running keyword/substring matching over property names like `email`,
- *     `username`, `password` would corrupt the cold-AI contract. The exemption
- *     is path-aware — only the literal `input_schema`/`output_schema` keys
+ *   - Schema-metadata paths (`input_schema`/`output_schema` in the WP REST
+ *     shape, `inputSchema`/`outputSchema` in the MCP wire shape) are exempt
+ *     from redaction (issue #105 for the per-ability meta-tool path,
+ *     completed by issue #113 for the method-level `tools/list` and
+ *     `tools/list/all` paths). Their subtrees describe ability shape, not
+ *     data, so running keyword/substring matching over property names like
+ *     `email`, `username`, `password` would corrupt the cold-AI contract.
+ *     The exemption is path-aware — only the literal schema-metadata keys
  *     trigger pass-through; field-name matching resumes below them only when
  *     the same names appear OUTSIDE a schema subtree.
  *   - When a field name matches, the ENTIRE value at that key is replaced (recursively
@@ -110,10 +113,14 @@ final class ResponseRedactor {
 	private int $node_count = 0;
 
 	/**
-	 * Whether the schema-metadata path exemption (issue #105) is active for
-	 * this redactor instance. Set when the ability that produced the response
-	 * is one of the dispatcher meta-tools that returns ability schemas as
-	 * structural metadata rather than runtime data.
+	 * Whether the schema-metadata path exemption (issues #105 + #113) is
+	 * active for this redactor instance. Set when either:
+	 *   - the ability that produced the response is one of the dispatcher
+	 *     meta-tools that returns ability schemas as structural metadata
+	 *     (per {@see SCHEMA_METADATA_ABILITIES}, issue #105); or
+	 *   - the JSON-RPC method is one of the schema-emit metadata methods
+	 *     that lists tool schemas as the response payload itself (per
+	 *     {@see SCHEMA_METADATA_METHODS}, issue #113).
 	 *
 	 * @var bool
 	 */
@@ -138,11 +145,31 @@ final class ResponseRedactor {
 	);
 
 	/**
+	 * JSON-RPC methods whose response body IS the tool-schema catalog —
+	 * the MCP protocol's tool-discovery surface. Each tool entry carries
+	 * `inputSchema` / `outputSchema` (camelCase, MCP wire shape) describing
+	 * the registered ability's WordPress-native schema. Walking redaction
+	 * across these keys corrupts the schemas Anthropic / OpenAI / generic
+	 * draft-2020-12 validators check at tool-load time (issue #113 —
+	 * completes the #105 exemption pattern for the method-level path).
+	 *
+	 * Audit pattern: any future MCP method that emits schemas as its
+	 * response payload (e.g. a hypothetical `tools/get-info`, or new
+	 * MCP protocol additions) registers itself here explicitly rather
+	 * than relying on a blanket method-level pass-through.
+	 */
+	private const SCHEMA_METADATA_METHODS = array(
+		'tools/list',
+		'tools/list/all',
+	);
+
+	/**
 	 * Build a redactor configured for the given ability call.
 	 *
 	 * @param string|null $ability_name Ability name (e.g. `users/list`), or null when method has no ability.
+	 * @param string|null $method       JSON-RPC method (e.g. `tools/list`), or null when unknown / unit-test contexts.
 	 */
-	public function __construct( ?string $ability_name = null ) {
+	public function __construct( ?string $ability_name = null, ?string $method = null ) {
 		$this->bucket1_set = self::flip_lower( RedactionConfig::bucket1_keywords() );
 		$this->bucket2_set = self::flip_lower( RedactionConfig::bucket2_keywords() );
 		$this->bucket3_set = self::flip_lower( RedactionConfig::bucket3_keywords() );
@@ -151,8 +178,12 @@ final class ResponseRedactor {
 		$this->bucket2_active  = $master && ! RedactionConfig::is_ability_exempt( $ability_name, RedactionConfig::BUCKET_PAYMENT );
 		$this->bucket3_active  = $master && ! RedactionConfig::is_ability_exempt( $ability_name, RedactionConfig::BUCKET_CONTACT );
 
-		$this->schema_metadata_exempt = null !== $ability_name
+		$ability_is_schema_meta = null !== $ability_name
 			&& in_array( $ability_name, self::SCHEMA_METADATA_ABILITIES, true );
+		$method_is_schema_meta  = null !== $method
+			&& in_array( $method, self::SCHEMA_METADATA_METHODS, true );
+
+		$this->schema_metadata_exempt = $ability_is_schema_meta || $method_is_schema_meta;
 	}
 
 	/**
@@ -280,14 +311,31 @@ final class ResponseRedactor {
 
 	/**
 	 * Whether the lower-cased key denotes a schema-metadata subtree exempt
-	 * from redaction (issue #105).
+	 * from redaction (issues #105 + #113).
 	 *
-	 * Scoped tightly to the two WordPress Abilities API schema fields. Broader
-	 * dispatcher-metadata exemption (e.g. `properties.<*>.description`,
+	 * Scoped tightly to the WordPress Abilities API schema fields in BOTH
+	 * naming conventions the suite traverses: snake_case (`input_schema` /
+	 * `output_schema`) as emitted by the WP-REST shape — meta-ability
+	 * responses like `mcp-adapter/get-ability-info` — AND camelCase
+	 * (`inputSchema` / `outputSchema`) as emitted by the MCP wire shape —
+	 * the `tools/list` / `tools/list/all` JSON-RPC method payloads in
+	 * {@see \WickedEvolutions\McpAdapter\Handlers\Tools\ToolsHandler}. Both
+	 * forms describe the same registered ability schema; treating them
+	 * symmetrically is the projection-layer contract.
+	 *
+	 * The key-name check fires only when the redactor was constructed in a
+	 * schema-metadata context (see {@see SCHEMA_METADATA_ABILITIES} /
+	 * {@see SCHEMA_METADATA_METHODS}). Outside those contexts a runtime
+	 * payload happening to use one of these key names still redacts.
+	 *
+	 * Broader dispatcher-metadata exemption (e.g. `properties.<*>.description`,
 	 * `properties.<*>.example`) is contract-polish work.
 	 */
 	private static function is_schema_metadata_key( string $lower_key ): bool {
-		return 'input_schema' === $lower_key || 'output_schema' === $lower_key;
+		return 'input_schema' === $lower_key
+			|| 'output_schema' === $lower_key
+			|| 'inputschema' === $lower_key
+			|| 'outputschema' === $lower_key;
 	}
 
 	/**
