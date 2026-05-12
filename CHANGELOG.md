@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.8] - 2026-05-12
+
+Hotfix completion of the schema-metadata exemption pattern shipped in [1.4.6] — extends the [#105](https://github.com/Wicked-Evolutions/abilities-mcp-adapter/issues/105) per-ability path to cover the JSON-RPC method-level `tools/list` and `tools/list/all` paths. Marketing-launch-coupled fix: the gap broke AI-client tool catalog loading on any site whose registered abilities include PII-keyword-named properties (`email`, `password`, `phone`, `address`, `ip` and prefix/suffix variants).
+
+### Bug — High (cold-AI contract correctness)
+
+- **#113: `tools/list` and `tools/list/all` no longer corrupt per-tool `inputSchema` / `outputSchema` via PII redaction.** [`ResponseRedactionGate`](src/Infrastructure/Redaction/ResponseRedactionGate.php) now forwards the JSON-RPC method into [`ResponseRedactor`](src/Infrastructure/Redaction/ResponseRedactor.php), and the redactor's schema-metadata exemption — previously gated on the per-ability allowlist established by [#105](https://github.com/Wicked-Evolutions/abilities-mcp-adapter/issues/105) — now also fires for the method-level allowlist `SCHEMA_METADATA_METHODS = ['tools/list', 'tools/list/all']`. The exempt-key check is also widened symmetrically to recognise both the WordPress-REST shape (`input_schema` / `output_schema`, snake_case) and the MCP wire shape (`inputSchema` / `outputSchema`, camelCase) so the same schema-metadata subtree is exempted regardless of which projection emits it. The exemption stays path-aware + schema-aware: only the literal four key names trigger pass-through, and runtime-value redaction on `tools/call` responses is unchanged (verified by negative-control test). Empirically verified against the full helenawillow.com `tools/list` payload (789 tools): zero `[redacted:bucket_3]` sentinels appear in any tool's `inputSchema` or `outputSchema` after the fix. Closes [#113](https://github.com/Wicked-Evolutions/abilities-mcp-adapter/issues/113).
+
 ## [1.4.7] - 2026-05-08
 
 Documentation update — README rewrite for OAuth resource server + Connected Bridges + layered-permissions surface coverage. Code unchanged from v1.4.6.
