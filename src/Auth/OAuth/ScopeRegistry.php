@@ -194,6 +194,7 @@ final class ScopeRegistry {
 			'fluent-messaging',
 			'fluent-cart',
 			'fluent-affiliate',
+			'fluent-player',
 		];
 
 		$scopes = [ 'abilities:read', 'abilities:write', 'abilities:delete' ];

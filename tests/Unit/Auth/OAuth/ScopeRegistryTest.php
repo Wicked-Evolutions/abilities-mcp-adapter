@@ -112,6 +112,7 @@ final class ScopeRegistryTest extends TestCase {
 			'fluent-crm', 'fluent-community', 'fluent-forms', 'fluent-support',
 			'fluent-boards', 'fluent-booking', 'fluent-smtp', 'fluent-auth',
 			'fluent-snippets', 'fluent-messaging', 'fluent-cart', 'fluent-affiliate',
+			'fluent-player',
 		];
 		$scopes  = ScopeRegistry::all_scopes();
 
