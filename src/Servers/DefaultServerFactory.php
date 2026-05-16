@@ -56,6 +56,12 @@ class DefaultServerFactory {
 			'error_handler'          => ErrorLogMcpErrorHandler::class,
 			'observability_handler'  => NullMcpObservabilityHandler::class,
 			'tools'                  => array(
+				// Issue #87 (S3): get-started is the documented boot entrypoint
+				// advertised in server_description.boot_sequence.first_tool
+				// above. It must be in this allowlist or tools/call resolves to
+				// -32003 Tool not found — advertised-but-unregistered. Additive,
+				// no contract change (Principle 10).
+				'mcp-adapter/get-started',
 				'mcp-adapter/discover-abilities',
 				'mcp-adapter/get-ability-info',
 				'mcp-adapter/execute-ability',

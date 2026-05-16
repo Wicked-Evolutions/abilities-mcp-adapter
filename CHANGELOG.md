@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Documented boot entrypoint `mcp-adapter/get-started` is now registered with the default server (Issue [#87](https://github.com/Wicked-Evolutions/abilities-mcp-adapter/issues/87) S3).** `DefaultServerFactory` advertises `server_description.boot_sequence.first_tool = "mcp-adapter/get-started"` (added in the "Boot nudge" change, commit `6b51d24`) but the server's `tools` allowlist was never updated to include it — only `discover-abilities`, `get-ability-info`, `execute-ability`, `batch-execute`. The `GetStartedAbility` registered correctly as a public WordPress ability, but the default MCP server never exposed it, so `tools/call mcp-adapter-get-started` resolved to `-32003 Tool not found` — the documented first boot step was unreachable for every client. `src/Servers/DefaultServerFactory.php` now includes `'mcp-adapter/get-started'` in the `tools` array. Purely additive — exposes an already-registered, already-advertised ability; no schema, name, or permission-semantics change (Principle 10). Regression-guarded by `tests/Unit/Servers/DefaultServerFactoryBootContractTest.php`, which pins the advertised boot `first_tool` and the `tools` allowlist in sync via static source parse so this cannot silently drift again. Full PHPUnit suite green.
+
 ## [1.4.8] - 2026-05-12
 
 Hotfix completion of the schema-metadata exemption pattern shipped in [1.4.6] — extends the [#105](https://github.com/Wicked-Evolutions/abilities-mcp-adapter/issues/105) per-ability path to cover the JSON-RPC method-level `tools/list` and `tools/list/all` paths. Marketing-launch-coupled fix: the gap broke AI-client tool catalog loading on any site whose registered abilities include PII-keyword-named properties (`email`, `password`, `phone`, `address`, `ip` and prefix/suffix variants).
