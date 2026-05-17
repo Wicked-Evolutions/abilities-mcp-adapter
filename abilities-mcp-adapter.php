@@ -3,7 +3,7 @@
  * Plugin Name: Abilities MCP Adapter
  * Plugin URI:  https://github.com/Wicked-Evolutions/abilities-mcp-adapter
  * Description: Exposes WordPress abilities as MCP tools, resources, and prompts. Upload, activate, and your WordPress abilities become MCP tools.
- * Version:     1.4.8
+ * Version:     1.4.9
  * Author:      Wicked Evolutions
  * Author URI:  https://wickedevolutions.com
  * Copyright:   Copyright (C) 2026 Wicked Evolutions
