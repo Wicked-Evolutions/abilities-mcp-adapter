@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.4.9] - 2026-05-17
+
+### Added
+
+- **FluentPlayer ability category added to the OAuth scope registry (commit `258a21f`).** `src/Auth/OAuth/ScopeRegistry.php` manual scope list now includes `fluent-player`, so FluentPlayer abilities are grantable and executable under OAuth (baseline or via `abilities-mcp reauth <site> --add-scope=…`). Without this entry the v1.4.0 FluentPlayer ability surface would return `insufficient_scope` under OAuth — directly relevant to OAuth clients exercising the FluentPlayer fixes. Additive scope-registry entry; no permission-semantics change to existing scopes (Principle 10). Regression-guarded by `tests/Unit/Auth/OAuth/ScopeRegistryTest.php`.
+
 ### Fixed
 
 - **Documented boot entrypoint `mcp-adapter/get-started` is now registered with the default server (Issue [#87](https://github.com/Wicked-Evolutions/abilities-mcp-adapter/issues/87) S3).** `DefaultServerFactory` advertises `server_description.boot_sequence.first_tool = "mcp-adapter/get-started"` (added in the "Boot nudge" change, commit `6b51d24`) but the server's `tools` allowlist was never updated to include it — only `discover-abilities`, `get-ability-info`, `execute-ability`, `batch-execute`. The `GetStartedAbility` registered correctly as a public WordPress ability, but the default MCP server never exposed it, so `tools/call mcp-adapter-get-started` resolved to `-32003 Tool not found` — the documented first boot step was unreachable for every client. `src/Servers/DefaultServerFactory.php` now includes `'mcp-adapter/get-started'` in the `tools` array. Purely additive — exposes an already-registered, already-advertised ability; no schema, name, or permission-semantics change (Principle 10). Regression-guarded by `tests/Unit/Servers/DefaultServerFactoryBootContractTest.php`, which pins the advertised boot `first_tool` and the `tools` allowlist in sync via static source parse so this cannot silently drift again. Full PHPUnit suite green.
