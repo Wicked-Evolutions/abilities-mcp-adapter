@@ -220,4 +220,50 @@ class McpToolValidatorTest extends TestCase {
 		$errors = McpToolValidator::get_validation_errors( $data );
 		$this->assertNotEmpty( $errors );
 	}
+
+	// ── stdClass empty-object schemas (Issue #125) ──
+
+	/**
+	 * Astra's `Astra_Abstract_Ability::get_final_input_schema()` normalizes empty input
+	 * to `[ 'type' => 'object', 'properties' => new \stdClass() ]` — the JSON Schema spec
+	 * encoding for `{}` in PHP. The validator must accept this shape for no-arg abilities.
+	 *
+	 * Issue: https://github.com/Wicked-Evolutions/abilities-mcp-adapter/issues/125
+	 */
+	public function test_stdclass_properties_at_schema_root_is_valid(): void {
+		$data                = $this->valid_tool_data();
+		$data['inputSchema'] = array(
+			'type'       => 'object',
+			'properties' => new \stdClass(),
+		);
+
+		$result = McpToolValidator::validate_tool_data( $data );
+		$this->assertTrue( $result );
+
+		$errors = McpToolValidator::get_validation_errors( $data );
+		$this->assertEmpty( $errors );
+	}
+
+	/**
+	 * Per JSON Schema, an individual property value may itself be an empty object (`{}`),
+	 * which PHP encodes as `new \stdClass()`. The validator must accept stdClass at the
+	 * per-property level alongside arrays.
+	 *
+	 * Issue: https://github.com/Wicked-Evolutions/abilities-mcp-adapter/issues/125
+	 */
+	public function test_stdclass_sub_property_value_is_valid(): void {
+		$data                = $this->valid_tool_data();
+		$data['inputSchema'] = array(
+			'type'       => 'object',
+			'properties' => array(
+				'metadata' => new \stdClass(),
+			),
+		);
+
+		$result = McpToolValidator::validate_tool_data( $data );
+		$this->assertTrue( $result );
+
+		$errors = McpToolValidator::get_validation_errors( $data );
+		$this->assertEmpty( $errors );
+	}
 }

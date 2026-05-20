@@ -16,7 +16,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // Plugin constants.
-define( 'ABILITIES_MCP_ADAPTER_VERSION', '1.4.8' );
+define( 'ABILITIES_MCP_ADAPTER_VERSION', '1.4.9' );
 define( 'ABILITIES_MCP_ADAPTER_PATH', plugin_dir_path( __FILE__ ) );
 
 // License manager — FluentCart license for auto-update delivery.
