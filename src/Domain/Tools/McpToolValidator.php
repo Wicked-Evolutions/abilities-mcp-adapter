@@ -176,8 +176,13 @@ class McpToolValidator {
 			);
 		}
 
-		// If properties exist, they must be an array/object.
-		if ( isset( $schema['properties'] ) && ! is_array( $schema['properties'] ) ) {
+		// If properties exist, they must be an array/object. stdClass is the JSON-spec-correct
+		// PHP encoding of an empty JSON object (`{}`) and must be accepted alongside arrays
+		// (Astra and other vendors register no-arg ability schemas as `new \stdClass()` per
+		// the JSON Schema spec for empty objects).
+		if ( isset( $schema['properties'] )
+			&& ! is_array( $schema['properties'] )
+			&& ! ( $schema['properties'] instanceof stdClass ) ) {
 			$errors[] = sprintf(
 			/* translators: %s: field name */
 				__( 'Tool %s properties must be an object/array', 'mcp-adapter' ),
@@ -194,10 +199,12 @@ class McpToolValidator {
 			);
 		}
 
-		// If properties are provided, validate their basic structure.
-		if ( isset( $schema['properties'] ) && is_array( $schema['properties'] ) ) {
-			foreach ( $schema['properties'] as $property_name => $property ) {
-				if ( ! is_array( $property ) ) {
+		// If properties are provided, validate their basic structure. Accept stdClass alongside
+		// array at the per-property level too — a sub-schema may be `new \stdClass()` for the
+		// same JSON Schema empty-object reason as the top-level case above.
+		if ( isset( $schema['properties'] ) && ( is_array( $schema['properties'] ) || $schema['properties'] instanceof stdClass ) ) {
+			foreach ( (array) $schema['properties'] as $property_name => $property ) {
+				if ( ! is_array( $property ) && ! ( $property instanceof stdClass ) ) {
 					$errors[] = sprintf(
 					/* translators: %1$s: field name, %2$s: property name */
 						__( 'Tool %1$s property \'%2$s\' must be an object', 'mcp-adapter' ),
@@ -205,6 +212,11 @@ class McpToolValidator {
 						$property_name
 					);
 					continue;
+				}
+
+				// Normalize stdClass to array for the remaining per-property checks.
+				if ( $property instanceof stdClass ) {
+					$property = (array) $property;
 				}
 
 				// Each property should have a type (though not strictly required by JSON Schema).

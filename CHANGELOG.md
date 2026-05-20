@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [1.4.9] - 2026-05-17
+## [1.4.9] - 2026-05-20
 
 ### Added
 
@@ -11,6 +11,12 @@
 ### Fixed
 
 - **Documented boot entrypoint `mcp-adapter/get-started` is now registered with the default server (Issue [#87](https://github.com/Wicked-Evolutions/abilities-mcp-adapter/issues/87) S3).** `DefaultServerFactory` advertises `server_description.boot_sequence.first_tool = "mcp-adapter/get-started"` (added in the "Boot nudge" change, commit `6b51d24`) but the server's `tools` allowlist was never updated to include it — only `discover-abilities`, `get-ability-info`, `execute-ability`, `batch-execute`. The `GetStartedAbility` registered correctly as a public WordPress ability, but the default MCP server never exposed it, so `tools/call mcp-adapter-get-started` resolved to `-32003 Tool not found` — the documented first boot step was unreachable for every client. `src/Servers/DefaultServerFactory.php` now includes `'mcp-adapter/get-started'` in the `tools` array. Purely additive — exposes an already-registered, already-advertised ability; no schema, name, or permission-semantics change (Principle 10). Regression-guarded by `tests/Unit/Servers/DefaultServerFactoryBootContractTest.php`, which pins the advertised boot `first_tool` and the `tools` allowlist in sync via static source parse so this cannot silently drift again. Full PHPUnit suite green.
+
+- **`McpToolValidator` no longer rejects JSON-spec-correct `stdClass` empty-object schemas (Issue [#125](https://github.com/Wicked-Evolutions/abilities-mcp-adapter/issues/125)).** `McpToolValidator::get_schema_validation_errors()` previously checked `! is_array( $schema['properties'] )` at the root and `! is_array( $property )` at each sub-property, rejecting `new \stdClass()` even though it is the JSON Schema-spec-correct PHP encoding of the empty object literal `{}`. Astra's `Astra_Abstract_Ability::get_final_input_schema()` normalizes no-arg input to `[ 'type' => 'object', 'properties' => new \stdClass() ]` and the top-level `stdClass → array` cast at line 152 is non-recursive, so the nested `stdClass` slipped through and failed validation. The error logged per ability per request — on a site with ~10 Astra no-arg abilities running on a 32MB-`memory_limit` shared host, the resulting log cascade contributed to fatal `Allowed memory size exhausted` PHP errors on legitimate admin endpoints (`/wp-json/wp/v2/users/me`, application-passwords, update-core), captured live on thinknicenow.com 2026-05-20. The fix accepts `stdClass` alongside `array` at both checked lines (root-level `properties` and per-property values). Per Principle 3 (Adapter Is A Projection) and Principle 4 (Schemas Stay WordPress-Native): the adapter validator stops being stricter than the JSON Schema spec for WordPress-native ability registrations. Regression-guarded by two new tests in `tests/Unit/Domain/Tools/McpToolValidatorTest.php` covering both the top-level and the sub-property `stdClass` cases. Closes [#125](https://github.com/Wicked-Evolutions/abilities-mcp-adapter/issues/125).
+
+### Chore
+
+- **`ABILITIES_MCP_ADAPTER_VERSION` constant aligned with plugin header (`'1.4.8'` → `'1.4.9'`).** PR [#123](https://github.com/Wicked-Evolutions/abilities-mcp-adapter/pull/123) bumped the plugin header to `Version: 1.4.9` but missed the matching `define()` in `abilities-mcp-adapter.php`. Same class of drift as the `abilities-for-ai` v1.9.4 constant drift caught at release prep. The constant is used by `Abilities_MCP_Adapter_Plugin_Updater` and any code that reads `ABILITIES_MCP_ADAPTER_VERSION` for diagnostic / update-channel comparison. No functional behavior change beyond reporting the correct version.
 
 ## [1.4.8] - 2026-05-12
 
