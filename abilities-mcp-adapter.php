@@ -108,12 +108,12 @@ add_filter( 'mcp_adapter_default_server_config', function( $config ) {
 }, 10 );
 
 // Initialize the MCP Adapter.
-add_action( 'init', function() {
+add_action( 'plugins_loaded', function() {
 	if ( ! class_exists( McpAdapter::class ) ) {
 		return;
 	}
 	McpAdapter::instance();
-}, 5 );
+} );
 
 // Register custom cron intervals.
 add_filter( 'cron_schedules', static function ( $schedules ) {
