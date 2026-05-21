@@ -74,8 +74,9 @@ final class GetStartedAbility {
 				'permission_callback' => array( self::class, 'check_permission' ),
 				'execute_callback'    => array( self::class, 'execute' ),
 				'meta'                => array(
-					'mcp'         => array( 'public' => true ),
-					'annotations' => array(
+					'mcp'          => array( 'public' => true ),
+					'show_in_rest' => true,
+					'annotations'  => array(
 						'readonly'    => true,
 						'destructive' => false,
 						'idempotent'  => true,
