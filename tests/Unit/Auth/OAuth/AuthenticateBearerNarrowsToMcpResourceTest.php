@@ -56,7 +56,7 @@ final class AuthenticateBearerNarrowsToMcpResourceTest extends TestCase {
 		$row->user_id     = 42;
 		$row->client_id   = 'client_abc';
 		$row->scope       = 'abilities:content:read';
-		$row->resource    = 'https://example.com/wp-json/mcp/mcp-adapter-default-server';
+		$row->resource    = 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server';
 		$row->token_hash  = 'h';
 		$row->expires_at  = $expires_at;
 		$row->revoked     = 0;
@@ -112,7 +112,7 @@ final class AuthenticateBearerNarrowsToMcpResourceTest extends TestCase {
 
 	public function test_authenticates_on_mcp_resource_with_valid_token(): void {
 		$this->install_valid_token_row();
-		$_SERVER['REQUEST_URI']        = '/wp-json/mcp/mcp-adapter-default-server';
+		$_SERVER['REQUEST_URI']        = '/wp-json/mcp/abilities-mcp-adapter-default-server';
 		$_SERVER['HTTP_AUTHORIZATION'] = 'Bearer some-plaintext-token';
 
 		$result = AuthorizationServer::authenticate_bearer( false );

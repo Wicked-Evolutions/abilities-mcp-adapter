@@ -68,7 +68,7 @@ final class AuthorizationCodeStoreTest extends TestCase {
 
 		$result = AuthorizationCodeStore::store(
 			str_repeat( 'a', 64 ), 'client-x', 1, 'https://example.com/cb',
-			'abilities:content:read', 'https://example.com/wp-json/mcp/mcp-adapter-default-server',
+			'abilities:content:read', 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server',
 			str_repeat( 'b', 43 )
 		);
 
@@ -84,7 +84,7 @@ final class AuthorizationCodeStoreTest extends TestCase {
 
 		$result = AuthorizationCodeStore::store(
 			str_repeat( 'a', 64 ), 'client-x', 1, 'https://example.com/cb',
-			'abilities:content:read', 'https://example.com/wp-json/mcp/mcp-adapter-default-server',
+			'abilities:content:read', 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server',
 			str_repeat( 'b', 43 )
 		);
 
@@ -100,7 +100,7 @@ final class AuthorizationCodeStoreTest extends TestCase {
 
 		AuthorizationCodeStore::store(
 			str_repeat( 'a', 64 ), 'client-x', 1, 'https://example.com/cb',
-			'abilities:content:read', 'https://example.com/wp-json/mcp/mcp-adapter-default-server',
+			'abilities:content:read', 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server',
 			str_repeat( 'b', 43 )
 		);
 
@@ -132,7 +132,7 @@ final class AuthorizationCodeStoreTest extends TestCase {
 
 		AuthorizationCodeStore::store(
 			str_repeat( 'a', 64 ), 'client-x', 1, 'https://example.com/cb',
-			'abilities:content:read', 'https://example.com/wp-json/mcp/mcp-adapter-default-server',
+			'abilities:content:read', 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server',
 			str_repeat( 'b', 43 )
 		);
 

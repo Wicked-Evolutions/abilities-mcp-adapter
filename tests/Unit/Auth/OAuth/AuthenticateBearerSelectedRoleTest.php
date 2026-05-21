@@ -31,7 +31,7 @@ final class AuthenticateBearerSelectedRoleTest extends TestCase {
 		$this->original_wpdb = $GLOBALS['wpdb'];
 		OAuthRequestContext::reset();
 		// Pin REQUEST_URI to a path oauth_is_mcp_resource_request() accepts.
-		$_SERVER['REQUEST_URI']        = '/wp-json/mcp/mcp-adapter-default-server';
+		$_SERVER['REQUEST_URI']        = '/wp-json/mcp/abilities-mcp-adapter-default-server';
 		$_SERVER['HTTP_AUTHORIZATION'] = 'Bearer some-plaintext-token';
 		$GLOBALS['wp_test_home_url']   = 'https://example.com';
 	}
@@ -50,7 +50,7 @@ final class AuthenticateBearerSelectedRoleTest extends TestCase {
 		$row->user_id       = 42;
 		$row->client_id     = 'client_abc';
 		$row->scope         = 'abilities:content:read';
-		$row->resource      = 'https://example.com/wp-json/mcp/mcp-adapter-default-server';
+		$row->resource      = 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server';
 		$row->token_hash    = 'h';
 		$row->selected_role = $selected_role;
 		$row->expires_at    = ( new \DateTimeImmutable( '+1 hour', new \DateTimeZone( 'UTC' ) ) )
@@ -101,7 +101,7 @@ final class AuthenticateBearerSelectedRoleTest extends TestCase {
 		$row->user_id     = 42;
 		$row->client_id   = 'client_abc';
 		$row->scope       = 'abilities:content:read';
-		$row->resource    = 'https://example.com/wp-json/mcp/mcp-adapter-default-server';
+		$row->resource    = 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server';
 		$row->token_hash  = 'h';
 		$row->expires_at  = ( new \DateTimeImmutable( '+1 hour', new \DateTimeZone( 'UTC' ) ) )
 			->format( 'Y-m-d H:i:s' );

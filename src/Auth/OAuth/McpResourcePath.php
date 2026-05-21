@@ -27,7 +27,7 @@ final class McpResourcePath {
 	public const REST_NAMESPACE = 'mcp';
 
 	/** Route name within the namespace. */
-	public const ROUTE = 'mcp-adapter-default-server';
+	public const ROUTE = 'abilities-mcp-adapter-default-server';
 
 	/** REST path for `rest_url()` — no leading slash. */
 	public const PATH = self::REST_NAMESPACE . '/' . self::ROUTE;

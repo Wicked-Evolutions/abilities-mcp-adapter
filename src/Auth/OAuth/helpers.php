@@ -104,7 +104,7 @@ if ( ! function_exists( 'oauth_is_mcp_resource_request' ) ) {
 	 * Whether the current REST request targets the MCP resource endpoint (C-1, H.1.2).
 	 *
 	 * Bearer auth must be a no-op for any other URI: tokens are bound to
-	 * /wp-json/mcp/mcp-adapter-default-server, but `determine_current_user`
+	 * /wp-json/mcp/abilities-mcp-adapter-default-server, but `determine_current_user`
 	 * fires on every REST request. Without this gate a token issued for the
 	 * MCP resource silently authenticates the bound user on /wp-json/wp/v2/*,
 	 * /wp-json/wp/v2/plugins, etc. — where the H.1.3 scope enforcer never
@@ -134,7 +134,7 @@ if ( ! function_exists( 'oauth_is_mcp_resource_request' ) ) {
 			}
 		}
 
-		// Plain permalinks: ?rest_route=/mcp/mcp-adapter-default-server.
+		// Plain permalinks: ?rest_route=/mcp/abilities-mcp-adapter-default-server.
 		$query = (string) parse_url( $uri, PHP_URL_QUERY );
 		if ( $query !== '' ) {
 			parse_str( $query, $params );

@@ -80,7 +80,7 @@ final class OAuthRequestContextResetTest extends TestCase {
 		OAuthRequestContext::set(
 			user_id: 7,
 			scopes: array( 'abilities:content:read' ),
-			resource: 'https://example.com/wp-json/mcp/mcp-adapter-default-server',
+			resource: 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server',
 			client_id: 'cl_test',
 			token_id: 1
 		);

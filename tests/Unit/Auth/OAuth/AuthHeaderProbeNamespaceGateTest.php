@@ -40,7 +40,7 @@ final class AuthHeaderProbeNamespaceGateTest extends TestCase {
 	}
 
 	public function test_probe_records_on_mcp_namespace_request(): void {
-		$_SERVER['REQUEST_URI']        = '/wp-json/mcp/mcp-adapter-default-server';
+		$_SERVER['REQUEST_URI']        = '/wp-json/mcp/abilities-mcp-adapter-default-server';
 		$_SERVER['HTTP_AUTHORIZATION'] = 'Bearer some-token';
 
 		AuthorizationServer::authenticate_bearer( false );
@@ -79,7 +79,7 @@ final class AuthHeaderProbeNamespaceGateTest extends TestCase {
 	}
 
 	public function test_probe_records_zero_when_authorization_header_absent(): void {
-		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/mcp-adapter-default-server';
+		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/abilities-mcp-adapter-default-server';
 		// No HTTP_AUTHORIZATION set.
 
 		AuthorizationServer::authenticate_bearer( false );

@@ -52,7 +52,7 @@ final class DiscoveryEndpoints {
 
 	/**
 	 * MCP resource URL — always constructed dynamically from issuer.
-	 * Namespace confirmed by Stream D: rest_url('mcp/mcp-adapter-default-server').
+	 * Namespace confirmed by Stream D: rest_url('mcp/abilities-mcp-adapter-default-server').
 	 *
 	 * @param string|null $path_prefix Path-style multisite prefix (see issuer()).
 	 */

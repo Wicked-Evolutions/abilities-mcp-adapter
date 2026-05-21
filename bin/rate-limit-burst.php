@@ -183,7 +183,7 @@ if ( $opts['help'] || '' === $opts['base-url'] ) {
 	exit( '' === $opts['base-url'] && ! $opts['help'] ? 2 : 0 );
 }
 
-$url       = rtrim( $opts['base-url'], '/' ) . '/wp-json/mcp/mcp-adapter-default-server';
+$url       = rtrim( $opts['base-url'], '/' ) . '/wp-json/mcp/abilities-mcp-adapter-default-server';
 $case      = $opts['case'];
 $threshold = $opts['threshold'] > 0
 	? $opts['threshold']

@@ -51,7 +51,7 @@ final class DiscoveryEndpointsTest extends TestCase {
 	public function test_resource_url_ends_with_mcp_path(): void {
 		$_SERVER['HTTP_HOST'] = 'example.com';
 		$resource = DiscoveryEndpoints::resource_url();
-		$this->assertStringEndsWith( '/wp-json/mcp/mcp-adapter-default-server', $resource );
+		$this->assertStringEndsWith( '/wp-json/mcp/abilities-mcp-adapter-default-server', $resource );
 	}
 
 	public function test_resource_url_contains_issuer(): void {

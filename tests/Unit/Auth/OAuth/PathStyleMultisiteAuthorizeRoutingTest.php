@@ -162,7 +162,7 @@ final class PathStyleMultisiteAuthorizeRoutingTest extends TestCase {
 		// rest_url() stub returns wp_test_home_url . '/wp-json/' . path.
 		$indicator = $this->call_resource_indicator( null );
 		$this->assertSame(
-			'https://example.com/wp-json/mcp/mcp-adapter-default-server',
+			'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server',
 			$indicator
 		);
 	}
@@ -173,7 +173,7 @@ final class PathStyleMultisiteAuthorizeRoutingTest extends TestCase {
 		$_SERVER['HTTP_HOST'] = 'example.com';
 		$indicator = $this->call_resource_indicator( '/sub2' );
 		$this->assertSame(
-			'http://example.com/sub2/wp-json/mcp/mcp-adapter-default-server',
+			'http://example.com/sub2/wp-json/mcp/abilities-mcp-adapter-default-server',
 			$indicator
 		);
 	}
@@ -182,7 +182,7 @@ final class PathStyleMultisiteAuthorizeRoutingTest extends TestCase {
 		// Empty string is treated the same as null — falls back to rest_url().
 		$indicator = $this->call_resource_indicator( '' );
 		$this->assertSame(
-			'https://example.com/wp-json/mcp/mcp-adapter-default-server',
+			'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server',
 			$indicator
 		);
 	}

@@ -38,7 +38,7 @@ final class OAuthRequestContextTest extends TestCase {
 		OAuthRequestContext::set(
 			user_id: 7,
 			scopes: [ 'abilities:read', 'abilities:write' ],
-			resource: 'https://example.com/wp-json/mcp/mcp-adapter-default-server',
+			resource: 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server',
 			client_id: 'cl_abc',
 			token_id: 42
 		);
@@ -46,7 +46,7 @@ final class OAuthRequestContextTest extends TestCase {
 		$this->assertTrue( OAuthRequestContext::is_oauth_request() );
 		$this->assertSame( 7, OAuthRequestContext::user_id() );
 		$this->assertSame( [ 'abilities:read', 'abilities:write' ], OAuthRequestContext::granted_scopes() );
-		$this->assertSame( 'https://example.com/wp-json/mcp/mcp-adapter-default-server', OAuthRequestContext::resource() );
+		$this->assertSame( 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server', OAuthRequestContext::resource() );
 		$this->assertSame( 'cl_abc', OAuthRequestContext::client_id() );
 		$this->assertSame( 42, OAuthRequestContext::token_id() );
 	}
