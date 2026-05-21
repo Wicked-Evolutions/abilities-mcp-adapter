@@ -36,7 +36,6 @@ final class GetAbilityInfoAbility {
 		wp_register_ability(
 			'mcp-adapter/get-ability-info',
 			array(
-				'show_in_rest'        => true,
 				'label'               => 'Get Ability Info',
 				'description'         => 'Get detailed information about a specific WordPress ability including its input/output schema, description, and usage examples.',
 				'category'            => 'mcp-adapter',
@@ -76,7 +75,9 @@ final class GetAbilityInfoAbility {
 				'permission_callback' => array( self::class, 'check_permission' ),
 				'execute_callback'    => array( self::class, 'execute' ),
 				'meta'                => array(
-					'annotations' => array(
+					'mcp'          => array( 'public' => true ),
+					'show_in_rest' => true,
+					'annotations'  => array(
 						'readonly'    => true,
 						'destructive' => false,
 						'idempotent'  => true,
