@@ -67,14 +67,14 @@ final class TokenStoreIssueResponseTest extends TestCase {
 	// -------------------------------------------------------------------------
 
 	public function test_issue_includes_token_type_bearer(): void {
-		$pair = TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/mcp-adapter-default-server' );
+		$pair = TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server' );
 
 		$this->assertArrayHasKey( 'token_type', $pair, 'token_type must be present (RFC 6749 §5.1 REQUIRED)' );
 		$this->assertSame( 'Bearer', $pair['token_type'] );
 	}
 
 	public function test_token_type_is_case_correct_Bearer(): void {
-		$pair = TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/mcp-adapter-default-server' );
+		$pair = TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server' );
 
 		// RFC 6749 §7.1 defines token type identifiers as case-insensitive, but
 		// RFC 6750 §1 uses "Bearer" (capital B). Return the canonical form.
@@ -86,26 +86,26 @@ final class TokenStoreIssueResponseTest extends TestCase {
 	// -------------------------------------------------------------------------
 
 	public function test_issue_still_returns_access_token(): void {
-		$pair = TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/mcp-adapter-default-server' );
+		$pair = TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server' );
 		$this->assertArrayHasKey( 'access_token', $pair );
 		$this->assertNotEmpty( $pair['access_token'] );
 	}
 
 	public function test_issue_still_returns_refresh_token(): void {
-		$pair = TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/mcp-adapter-default-server' );
+		$pair = TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server' );
 		$this->assertArrayHasKey( 'refresh_token', $pair );
 		$this->assertNotEmpty( $pair['refresh_token'] );
 	}
 
 	public function test_issue_still_returns_expires_in(): void {
-		$pair = TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/mcp-adapter-default-server' );
+		$pair = TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server' );
 		$this->assertArrayHasKey( 'expires_in', $pair );
 		$this->assertSame( TokenStore::ACCESS_TTL, $pair['expires_in'] );
 	}
 
 	public function test_issue_returns_granted_scope_verbatim(): void {
 		$scope = 'abilities:content:read abilities:content:write';
-		$pair  = TokenStore::issue( 'cl_test', 1, $scope, 'https://example.com/wp-json/mcp/mcp-adapter-default-server' );
+		$pair  = TokenStore::issue( 'cl_test', 1, $scope, 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server' );
 		$this->assertArrayHasKey( 'scope', $pair );
 		$this->assertSame( $scope, $pair['scope'] );
 	}
@@ -124,7 +124,7 @@ final class TokenStoreIssueResponseTest extends TestCase {
 			'abilities:media:read',
 		] );
 
-		$pair = TokenStore::issue( 'cl_test', 1, $expanded_scope, 'https://example.com/wp-json/mcp/mcp-adapter-default-server' );
+		$pair = TokenStore::issue( 'cl_test', 1, $expanded_scope, 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server' );
 
 		$this->assertSame( $expanded_scope, $pair['scope'], 'Stored scope must be returned verbatim' );
 	}
@@ -134,7 +134,7 @@ final class TokenStoreIssueResponseTest extends TestCase {
 	// -------------------------------------------------------------------------
 
 	public function test_issue_response_has_exactly_five_keys(): void {
-		$pair = TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/mcp-adapter-default-server' );
+		$pair = TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server' );
 
 		$this->assertCount( 5, $pair, 'Issue response must have exactly 5 keys: access_token, token_type, refresh_token, expires_in, scope' );
 		$this->assertSame(

@@ -46,9 +46,9 @@ class DefaultServerFactory {
 
 		// WordPress-specific defaults
 		$wordpress_defaults = array(
-			'server_id'              => 'mcp-adapter-default-server',
+			'server_id'              => 'abilities-mcp-adapter-default-server',
 			'server_route_namespace' => 'mcp',
-			'server_route'           => 'mcp-adapter-default-server',
+			'server_route'           => 'abilities-mcp-adapter-default-server',
 			'server_name'            => 'MCP Adapter Default Server',
 			'server_description'     => '{"server":"abilities-mcp","boot_sequence":{"first_tool":"mcp-adapter/get-started","then":"follow next_action in response"}}',
 			'server_version'         => 'v1.0.0',

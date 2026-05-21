@@ -25,15 +25,15 @@ final class McpResourcePathTest extends TestCase {
 	}
 
 	public function test_route_is_mcp_adapter_default_server(): void {
-		$this->assertSame( 'mcp-adapter-default-server', McpResourcePath::ROUTE );
+		$this->assertSame( 'abilities-mcp-adapter-default-server', McpResourcePath::ROUTE );
 	}
 
 	public function test_path_is_namespace_slash_route_with_no_leading_slash(): void {
-		$this->assertSame( 'mcp/mcp-adapter-default-server', McpResourcePath::PATH );
+		$this->assertSame( 'mcp/abilities-mcp-adapter-default-server', McpResourcePath::PATH );
 	}
 
 	public function test_leading_slash_path_has_leading_slash(): void {
-		$this->assertSame( '/mcp/mcp-adapter-default-server', McpResourcePath::LEADING_SLASH_PATH );
+		$this->assertSame( '/mcp/abilities-mcp-adapter-default-server', McpResourcePath::LEADING_SLASH_PATH );
 		$this->assertSame( '/' . McpResourcePath::PATH, McpResourcePath::LEADING_SLASH_PATH );
 	}
 }

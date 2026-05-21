@@ -65,7 +65,7 @@ final class PromptsHandlerScopeEnforcementTest extends TestCase {
 	}
 
 	private function set_oauth_request( array $scopes ): void {
-		OAuthRequestContext::set( 7, $scopes, 'https://example.com/wp-json/mcp/mcp-adapter-default-server', 'cl_test', 1 );
+		OAuthRequestContext::set( 7, $scopes, 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server', 'cl_test', 1 );
 	}
 
 	// ---------------------------------------------------------------------

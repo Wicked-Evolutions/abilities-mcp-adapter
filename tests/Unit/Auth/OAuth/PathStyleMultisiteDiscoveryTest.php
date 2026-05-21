@@ -88,13 +88,13 @@ final class PathStyleMultisiteDiscoveryTest extends TestCase {
 		$_SERVER['HTTP_HOST'] = 'example.com';
 		$url = DiscoveryEndpoints::resource_url( '/sub2' );
 		$this->assertStringStartsWith( 'http://example.com/sub2', $url );
-		$this->assertStringEndsWith( '/wp-json/mcp/mcp-adapter-default-server', $url );
+		$this->assertStringEndsWith( '/wp-json/mcp/abilities-mcp-adapter-default-server', $url );
 	}
 
 	public function test_resource_url_without_prefix_unchanged(): void {
 		$_SERVER['HTTP_HOST'] = 'example.com';
 		$url = DiscoveryEndpoints::resource_url();
-		$this->assertSame( 'http://example.com/wp-json/mcp/mcp-adapter-default-server', $url );
+		$this->assertSame( 'http://example.com/wp-json/mcp/abilities-mcp-adapter-default-server', $url );
 	}
 
 	// -------------------------------------------------------------------------

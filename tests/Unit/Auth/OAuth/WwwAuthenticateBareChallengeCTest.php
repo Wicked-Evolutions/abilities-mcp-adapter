@@ -47,7 +47,7 @@ final class WwwAuthenticateBareChallengeCTest extends TestCase {
 	 * rest_post_dispatch filter must be registered (bare challenge scheduled).
 	 */
 	public function test_bare_challenge_scheduled_for_mcp_resource_with_no_token(): void {
-		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/mcp-adapter-default-server';
+		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/abilities-mcp-adapter-default-server';
 		unset( $_SERVER['HTTP_AUTHORIZATION'] );
 
 		$result = AuthorizationServer::authenticate_bearer( false );
@@ -80,7 +80,7 @@ final class WwwAuthenticateBareChallengeCTest extends TestCase {
 	 * error or error_description parameters (only realm + resource_metadata).
 	 */
 	public function test_bare_challenge_closure_has_empty_error_code(): void {
-		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/mcp-adapter-default-server';
+		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/abilities-mcp-adapter-default-server';
 		unset( $_SERVER['HTTP_AUTHORIZATION'] );
 
 		AuthorizationServer::authenticate_bearer( false );
@@ -106,7 +106,7 @@ final class WwwAuthenticateBareChallengeCTest extends TestCase {
 	 * from the bare case — the client sent something that looks like auth.
 	 */
 	public function test_challenge_with_invalid_token_format_is_scheduled(): void {
-		$_SERVER['REQUEST_URI']        = '/wp-json/mcp/mcp-adapter-default-server';
+		$_SERVER['REQUEST_URI']        = '/wp-json/mcp/abilities-mcp-adapter-default-server';
 		$_SERVER['HTTP_AUTHORIZATION'] = 'Basic dXNlcjpwYXNz';
 
 		// Basic auth, not Bearer — should fall through and schedule bare challenge.

@@ -48,7 +48,7 @@ final class TokenStoreRotationFamilyTest extends TestCase {
 
 		$GLOBALS['wpdb'] = $this->make_capturing_wpdb( $captured );
 
-		TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/mcp-adapter-default-server' );
+		TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server' );
 
 		$this->assertNotNull( $captured->family_id, 'issue() must store a non-null family_id when none is supplied' );
 		$this->assertMatchesRegularExpression( '/^[0-9a-f]{32}$/', $captured->family_id, 'Generated family_id must be 32 hex chars (16 bytes)' );
@@ -63,7 +63,7 @@ final class TokenStoreRotationFamilyTest extends TestCase {
 		$GLOBALS['wpdb'] = $this->make_capturing_wpdb( $captured );
 
 		$explicit_family = 'aabbccddeeff00112233445566778899';
-		TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/mcp-adapter-default-server', TokenStore::ACCESS_TTL, TokenStore::REFRESH_TTL, $explicit_family );
+		TokenStore::issue( 'cl_test', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server', TokenStore::ACCESS_TTL, TokenStore::REFRESH_TTL, $explicit_family );
 
 		$this->assertSame( $explicit_family, $captured->family_id, 'issue() must store the supplied family_id without modification' );
 	}
@@ -79,10 +79,10 @@ final class TokenStoreRotationFamilyTest extends TestCase {
 		$cap2->family_id = null;
 
 		$GLOBALS['wpdb'] = $this->make_capturing_wpdb( $cap1 );
-		TokenStore::issue( 'cl_a', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/mcp-adapter-default-server' );
+		TokenStore::issue( 'cl_a', 1, 'abilities:content:read', 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server' );
 
 		$GLOBALS['wpdb'] = $this->make_capturing_wpdb( $cap2 );
-		TokenStore::issue( 'cl_b', 2, 'abilities:content:read', 'https://example.com/wp-json/mcp/mcp-adapter-default-server' );
+		TokenStore::issue( 'cl_b', 2, 'abilities:content:read', 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server' );
 
 		$this->assertNotSame( $cap1->family_id, $cap2->family_id, 'Independent issuances must have distinct family IDs' );
 	}
@@ -227,7 +227,7 @@ final class TokenStoreRotationFamilyTest extends TestCase {
 						'client_id'       => 'cl_test',
 						'user_id'         => 1,
 						'scope'           => 'abilities:content:read',
-						'resource'        => 'https://example.com/wp-json/mcp/mcp-adapter-default-server',
+						'resource'        => 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server',
 						'family_id'       => $this->parent_family,
 						'expires_at'      => $this->future,
 						'revoked'         => 0,
@@ -289,7 +289,7 @@ final class TokenStoreRotationFamilyTest extends TestCase {
 						'client_id'       => 'cl_test',
 						'user_id'         => 1,
 						'scope'           => 'abilities:content:read',
-						'resource'        => 'https://example.com/wp-json/mcp/mcp-adapter-default-server',
+						'resource'        => 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server',
 						'family_id'       => $this->parent_family,
 						'expires_at'      => $this->future,
 						'revoked'         => 1,
@@ -347,7 +347,7 @@ final class TokenStoreRotationFamilyTest extends TestCase {
 					'client_id'       => 'cl_test',
 					'user_id'         => 1,
 					'scope'           => 'abilities:content:read',
-					'resource'        => 'https://example.com/wp-json/mcp/mcp-adapter-default-server',
+					'resource'        => 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server',
 					'family_id'       => $this->parent_family,
 					'expires_at'      => $this->future,
 					'revoked'         => 1,

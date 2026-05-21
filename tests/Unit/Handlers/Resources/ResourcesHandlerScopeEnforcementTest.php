@@ -72,7 +72,7 @@ final class ResourcesHandlerScopeEnforcementTest extends TestCase {
 	}
 
 	private function set_oauth_request( array $scopes ): void {
-		OAuthRequestContext::set( 7, $scopes, 'https://example.com/wp-json/mcp/mcp-adapter-default-server', 'cl_test', 1 );
+		OAuthRequestContext::set( 7, $scopes, 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server', 'cl_test', 1 );
 	}
 
 	public function test_oauth_request_without_required_scope_denies_with_insufficient_scope(): void {

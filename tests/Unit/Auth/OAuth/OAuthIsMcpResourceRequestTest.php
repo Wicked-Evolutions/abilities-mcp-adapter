@@ -3,7 +3,7 @@
  * Tests for the global oauth_is_mcp_resource_request() helper (C-1, H.1.2).
  *
  * The helper gates Bearer authentication: only requests that target the MCP
- * resource endpoint (/wp-json/mcp/mcp-adapter-default-server) may
+ * resource endpoint (/wp-json/mcp/abilities-mcp-adapter-default-server) may
  * be authenticated by an OAuth bearer token. Every other URI must return
  * false so determine_current_user can no-op.
  *
@@ -77,12 +77,12 @@ final class OAuthIsMcpResourceRequestTest extends TestCase {
 	}
 
 	public function test_pretty_permalink_mcp_resource_returns_true(): void {
-		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/mcp-adapter-default-server';
+		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/abilities-mcp-adapter-default-server';
 		$this->assertTrue( \oauth_is_mcp_resource_request() );
 	}
 
 	public function test_pretty_permalink_mcp_resource_with_query_returns_true(): void {
-		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/mcp-adapter-default-server?foo=bar';
+		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/abilities-mcp-adapter-default-server?foo=bar';
 		$this->assertTrue( \oauth_is_mcp_resource_request() );
 	}
 
@@ -90,12 +90,12 @@ final class OAuthIsMcpResourceRequestTest extends TestCase {
 		// Defensive: should the MCP server ever expose a sub-resource, the
 		// gate must still admit it. The token's resource binding still
 		// covers the canonical endpoint.
-		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/mcp-adapter-default-server/anything';
+		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/abilities-mcp-adapter-default-server/anything';
 		$this->assertTrue( \oauth_is_mcp_resource_request() );
 	}
 
 	public function test_plain_permalink_mcp_resource_returns_true(): void {
-		$_SERVER['REQUEST_URI'] = '/index.php?rest_route=/mcp/mcp-adapter-default-server';
+		$_SERVER['REQUEST_URI'] = '/index.php?rest_route=/mcp/abilities-mcp-adapter-default-server';
 		$this->assertTrue( \oauth_is_mcp_resource_request() );
 	}
 
@@ -105,9 +105,9 @@ final class OAuthIsMcpResourceRequestTest extends TestCase {
 	}
 
 	public function test_resource_prefix_with_extra_chars_is_not_a_match(): void {
-		// /wp-json/mcp/mcp-adapter-default-server-extra must not match the
-		// canonical /wp-json/mcp/mcp-adapter-default-server prefix.
-		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/mcp-adapter-default-server-extra';
+		// /wp-json/mcp/abilities-mcp-adapter-default-server-extra must not match the
+		// canonical /wp-json/mcp/abilities-mcp-adapter-default-server prefix.
+		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/abilities-mcp-adapter-default-server-extra';
 		$this->assertFalse( \oauth_is_mcp_resource_request() );
 	}
 
@@ -127,10 +127,10 @@ final class OAuthIsMcpResourceRequestTest extends TestCase {
 		$prev_home = $GLOBALS['wp_test_home_url'] ?? null;
 		$GLOBALS['wp_test_home_url'] = 'https://example.com/sub';
 		try {
-			$_SERVER['REQUEST_URI'] = '/sub/wp-json/mcp/mcp-adapter-default-server';
+			$_SERVER['REQUEST_URI'] = '/sub/wp-json/mcp/abilities-mcp-adapter-default-server';
 			$this->assertTrue( \oauth_is_mcp_resource_request() );
 
-			$_SERVER['REQUEST_URI'] = '/wp-json/mcp/mcp-adapter-default-server';
+			$_SERVER['REQUEST_URI'] = '/wp-json/mcp/abilities-mcp-adapter-default-server';
 			$this->assertFalse(
 				\oauth_is_mcp_resource_request(),
 				'subdir install must not match the bare /wp-json/ path'

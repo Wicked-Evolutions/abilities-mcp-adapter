@@ -44,7 +44,7 @@ final class ResponseDifferentialHardeningTest extends TestCase {
 	}
 
 	private function set_mcp_request( string $token = 'some-token' ): void {
-		$_SERVER['REQUEST_URI']        = '/wp-json/mcp/mcp-adapter-default-server';
+		$_SERVER['REQUEST_URI']        = '/wp-json/mcp/abilities-mcp-adapter-default-server';
 		$_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $token;
 	}
 
@@ -81,7 +81,7 @@ final class ResponseDifferentialHardeningTest extends TestCase {
 		$row->client_id = 'cl_test';
 		$row->user_id   = 7;
 		$row->scope     = 'abilities:content:read';
-		$row->resource  = 'https://example.com/wp-json/mcp/mcp-adapter-default-server';
+		$row->resource  = 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server';
 		$row->token_hash = 'h';
 		$row->expires_at = ( new \DateTimeImmutable( '+1 hour', new \DateTimeZone( 'UTC' ) ) )->format( 'Y-m-d H:i:s' );
 		$row->revoked   = 1;
@@ -131,7 +131,7 @@ final class ResponseDifferentialHardeningTest extends TestCase {
 		$row->client_id = 'cl_test';
 		$row->user_id   = 7;
 		$row->scope     = 'abilities:content:read';
-		$row->resource  = 'https://example.com/wp-json/mcp/mcp-adapter-default-server';
+		$row->resource  = 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server';
 		$row->token_hash = 'h';
 		$row->expires_at = ( new \DateTimeImmutable( '-1 hour', new \DateTimeZone( 'UTC' ) ) )->format( 'Y-m-d H:i:s' );
 		$row->revoked   = 0;

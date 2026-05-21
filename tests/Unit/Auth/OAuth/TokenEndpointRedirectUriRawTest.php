@@ -151,7 +151,7 @@ final class TokenEndpointRedirectUriRawTest extends TestCase {
 						'user_id'               => 7,
 						'redirect_uri'          => $this->expected_redirect,
 						'scope'                 => 'abilities:content:read',
-						'resource'              => 'https://example.com/wp-json/mcp/mcp-adapter-default-server',
+						'resource'              => 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server',
 						'code_challenge'        => $this->challenge,
 						'code_challenge_method' => 'S256',
 						'expires_at'            => gmdate( 'Y-m-d H:i:s', time() + 600 ),

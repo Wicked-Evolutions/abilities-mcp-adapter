@@ -2,7 +2,7 @@
 /**
  * Session-aware rate-limit burst harness (#27).
  *
- * Exercises the live `/wp-json/mcp/mcp-adapter-default-server` endpoint
+ * Exercises the live `/wp-json/mcp/abilities-mcp-adapter-default-server` endpoint
  * past its IP / user / initialize windows and verifies the wire response
  * matches the limiter contract (429 + Retry-After + boundary log entry).
  *

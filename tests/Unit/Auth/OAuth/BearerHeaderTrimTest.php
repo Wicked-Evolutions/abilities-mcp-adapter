@@ -39,7 +39,7 @@ final class BearerHeaderTrimTest extends TestCase {
 		$this->original_wpdb = $GLOBALS['wpdb'];
 		OAuthRequestContext::reset();
 		// Target the MCP resource so authenticate_bearer doesn't no-op via C-1.
-		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/mcp-adapter-default-server';
+		$_SERVER['REQUEST_URI'] = '/wp-json/mcp/abilities-mcp-adapter-default-server';
 	}
 
 	protected function tearDown(): void {
@@ -87,7 +87,7 @@ final class BearerHeaderTrimTest extends TestCase {
 				$row->user_id     = $this->user_id;
 				$row->client_id   = 'cl_test';
 				$row->scope       = 'abilities:content:read';
-				$row->resource    = 'https://example.com/wp-json/mcp/mcp-adapter-default-server';
+				$row->resource    = 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server';
 				$row->token_hash  = $this->expected_hash;
 				$row->expires_at  = $this->expires_at;
 				$row->revoked     = 0;

@@ -25,7 +25,7 @@ use WickedEvolutions\McpAdapter\Auth\OAuth\Consent\AuthorizeValidationResult;
 
 final class AuthorizeRequestValidatorTest extends TestCase {
 
-	private const RESOURCE = 'https://example.com/wp-json/mcp/mcp-adapter-default-server';
+	private const RESOURCE = 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server';
 
 	protected function setUp(): void {
 		// Each test starts with a clean stub registry of "registered clients".

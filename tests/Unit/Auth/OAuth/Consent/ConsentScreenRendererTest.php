@@ -47,7 +47,7 @@ final class ConsentScreenRendererTest extends TestCase {
 			'scope'                      => 'abilities:content:read abilities:settings:read',
 			'state'                      => 'rnd-state-xyz',
 			'code_challenge'             => 'CHALLENGE-XXXXXXXXXXXXXXXXXXXXXXXXXX',
-			'resource'                   => 'https://example.com/wp-json/mcp/mcp-adapter-default-server',
+			'resource'                   => 'https://example.com/wp-json/mcp/abilities-mcp-adapter-default-server',
 			'user_id'                    => 7,
 			'user_login'                 => 'jacob',
 			'user_display'               => 'Jacob Willow',
