@@ -75,7 +75,9 @@ final class ExecuteAbilityAbility {
 				'permission_callback' => array( self::class, 'check_permission' ),
 				'execute_callback'    => array( self::class, 'execute' ),
 				'meta'                => array(
-					'annotations' => array(
+					'mcp'          => array( 'public' => true ),
+					'show_in_rest' => true,
+					'annotations'  => array(
 						// MCP-level destructive annotation kept for client safety: this
 						// dispatcher CAN run destructive abilities via its `ability_name`
 						// argument. Authorization weight lives on the inner per-underlying
