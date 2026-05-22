@@ -173,11 +173,33 @@ final class DiscoverAbilitiesAbility {
 		$filter_category   = $input['category'] ?? '';
 		$filter_annotation = $input['annotation'] ?? '';
 		$filter_search     = $input['search'] ?? '';
-		$compact           = ! empty( $input['compact'] );
-		$limit             = isset( $input['limit'] ) ? min( absint( $input['limit'] ), 200 ) : 0;
-		$offset            = isset( $input['offset'] ) ? absint( $input['offset'] ) : 0;
 
-		$ability_list = array();
+		// Lean defaults (#139). When the caller passes no `compact`, default it to
+		// true — the unfiltered verbose dump is ~411KB on a large site and blows
+		// past AI-client token caps. When BOTH `compact` and `limit` are absent,
+		// also cap the page at 100 (reviewer-calibrated: compact alone is not a
+		// size bound — fluent-crm compact ≈ 25KB; limit:200 ≈ 17KB once the
+		// Knowledge-Layer steering is prepended). An explicit `compact` (true or
+		// false) suppresses the auto-limit so power users keep full control;
+		// `compact:false, limit:0` reproduces the legacy verbose unbounded dump.
+		$compact_explicit = array_key_exists( 'compact', $input );
+		$limit_explicit   = array_key_exists( 'limit', $input );
+
+		$compact = $compact_explicit ? ! empty( $input['compact'] ) : true;
+
+		if ( $limit_explicit ) {
+			$limit = min( absint( $input['limit'] ), 200 );
+		} elseif ( ! $compact_explicit ) {
+			$limit = 100;
+		} else {
+			$limit = 0;
+		}
+
+		$offset = isset( $input['offset'] ) ? absint( $input['offset'] ) : 0;
+
+		$ability_list     = array();
+		$unfiltered_total = 0;
+		$category_counts  = array();
 		foreach ( $abilities as $ability ) {
 			$ability_name = $ability->get_name();
 
@@ -190,6 +212,9 @@ final class DiscoverAbilitiesAbility {
 			if ( self::get_ability_mcp_type( $ability ) !== 'tool' ) {
 				continue;
 			}
+
+			// Unfiltered total = mcp.public + type=tool, before category/annotation/search.
+			++$unfiltered_total;
 
 			// Filter by category.
 			if ( $filter_category && $ability->get_category() !== $filter_category ) {
@@ -216,6 +241,13 @@ final class DiscoverAbilitiesAbility {
 				}
 			}
 
+			// Histogram over the filtered set, pre-pagination (cheap — already
+			// in the loop). Uses the ability's registered category verbatim; the
+			// bridge-side shared-prefix bucketing (surecart-ecommerce → surecart)
+			// is a separate follow-up and intentionally not applied here.
+			$slug                     = (string) $ability->get_category();
+			$category_counts[ $slug ] = ( $category_counts[ $slug ] ?? 0 ) + 1;
+
 			if ( $compact ) {
 				$ability_list[] = array(
 					'name'     => $ability_name,
@@ -240,6 +272,28 @@ final class DiscoverAbilitiesAbility {
 		} elseif ( $offset > 0 ) {
 			$ability_list = array_slice( $ability_list, $offset );
 		}
+		$returned    = count( $ability_list );
+		$has_more    = ( $offset + $returned ) < $total_filtered;
+		$next_offset = $has_more ? ( $offset + $returned ) : null;
+
+		// Categories histogram over the filtered set (pre-pagination), sorted by
+		// count desc then slug asc for stable ordering.
+		$categories = array();
+		foreach ( $category_counts as $slug => $count ) {
+			$categories[] = array(
+				'slug'  => $slug,
+				'count' => $count,
+			);
+		}
+		usort(
+			$categories,
+			static function ( $a, $b ) {
+				if ( $a['count'] === $b['count'] ) {
+					return strcmp( $a['slug'], $b['slug'] );
+				}
+				return $b['count'] - $a['count'];
+			}
+		);
 
 		// Build response.
 		$is_filtered = (bool) ( $filter_category || $filter_annotation || $filter_search );
@@ -268,14 +322,23 @@ final class DiscoverAbilitiesAbility {
 		$response['total']     = $total_filtered;
 		$response['filtered']  = $is_filtered;
 
-		if ( $limit > 0 ) {
-			$response['_pagination'] = array(
-				'total'    => $total_filtered,
-				'limit'    => $limit,
-				'offset'   => $offset,
-				'has_more' => ( $offset + $limit ) < $total_filtered,
-			);
-		}
+		// Pagination envelope — always present and self-documenting (#139).
+		// `total` is the unfiltered mcp.public+tool count; `filtered_total` is the
+		// post-filter count before paging. Renamed from the prior `_pagination`
+		// (which was emitted only when a limit was set) — the underscore-prefixed
+		// key is gone; no other reader referenced it.
+		$response['pagination'] = array(
+			'total'          => $unfiltered_total,
+			'filtered_total' => $total_filtered,
+			'returned'       => $returned,
+			'offset'         => $offset,
+			'next_offset'    => $next_offset,
+			'has_more'       => $has_more,
+			'compact'        => $compact,
+		);
+
+		// Always-present category histogram over the filtered set (#139).
+		$response['categories'] = $categories;
 
 		return $response;
 	}
