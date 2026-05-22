@@ -125,7 +125,14 @@ final class ExecuteAbilityAbility {
 		// Get the target ability
 		$ability = wp_get_ability( $ability_name );
 		if ( ! $ability ) {
-			return new \WP_Error( 'ability_not_found', "Ability '{$ability_name}' not found" );
+			return new \WP_Error(
+				'ability_not_found',
+				"Ability '{$ability_name}' not found",
+				array(
+					'reason' => 'not_found',
+					'hint'   => self::MCP_NOT_FOUND_HINT,
+				)
+			);
 		}
 
 		// Check if the user has permission to execute the target ability
@@ -222,6 +229,7 @@ final class ExecuteAbilityAbility {
 				'error'          => $scope_denial['message'],
 				'error_code'     => $scope_denial['error_code'],
 				'required_scope' => $scope_denial['required_scope'],
+				'reason'         => 'insufficient_scope',
 			);
 		}
 
