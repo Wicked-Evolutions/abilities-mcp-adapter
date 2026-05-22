@@ -388,8 +388,27 @@ class ToolsHandler {
 					);
 				}
 
+				// Route a permission-phase WP_Error through the same mapper the
+				// execution path uses (line ~466), so a name-resolution failure
+				// surfaced from a permission_callback (e.g. `ability_not_found`
+				// from ExecuteAbilityAbility::check_permission) renders as the
+				// correct code (-32003) instead of being conflated under -32008
+				// (issue #140). The default code stays PERMISSION_DENIED so any
+				// genuine permission/auth WP_Error without an explicit mapping
+				// keeps -32008. Non-WP_Error denials (a bare `false`) fall back
+				// to the generic permission_denied envelope.
+				if ( is_wp_error( $has_permission ) ) {
+					$error_block = McpErrorMapper::from_wp_error(
+						$request_id,
+						$has_permission,
+						McpErrorFactory::PERMISSION_DENIED
+					)['error'];
+				} else {
+					$error_block = McpErrorFactory::permission_denied( $request_id, $failure_message )['error'];
+				}
+
 				return array(
-					'error'     => McpErrorFactory::permission_denied( $request_id, $failure_message )['error'],
+					'error'     => $error_block,
 					'_metadata' => array(
 						'component_type' => 'tool',
 						'tool_name'      => $tool_name,
@@ -434,6 +453,7 @@ class ToolsHandler {
 					'data'    => array(
 						'error'          => $scope_denial['error_code'],
 						'required_scope' => $scope_denial['required_scope'],
+						'reason'         => 'insufficient_scope',
 					),
 				),
 				'_metadata' => array(

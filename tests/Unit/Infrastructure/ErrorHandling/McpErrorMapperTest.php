@@ -36,6 +36,12 @@ class McpErrorMapperTest extends TestCase {
 		$this->assertSame( McpErrorFactory::PERMISSION_DENIED, McpErrorMapper::map_code( 'ability_invalid_permissions' ) );
 	}
 
+	public function test_map_ability_not_public_mcp_to_permission_denied(): void {
+		// #140: not-exposed-via-MCP must render as -32008, distinct from the
+		// -32003 not-found code, and not fall through to the INTERNAL_ERROR default.
+		$this->assertSame( McpErrorFactory::PERMISSION_DENIED, McpErrorMapper::map_code( 'ability_not_public_mcp' ) );
+	}
+
 	public function test_map_ability_invalid_input_to_invalid_params(): void {
 		$this->assertSame( McpErrorFactory::INVALID_PARAMS, McpErrorMapper::map_code( 'ability_invalid_input' ) );
 	}
@@ -106,5 +112,48 @@ class McpErrorMapperTest extends TestCase {
 		// The WP_Error stub initializes data as '' which is not null,
 		// so create_error_response will include it. This tests the actual behavior.
 		$this->assertArrayHasKey( 'data', $response['error'] );
+	}
+
+	// ── from_wp_error() — permission-path default (#140) ──
+
+	public function test_permission_default_keeps_unmapped_code_at_permission_denied(): void {
+		// The permission render path passes PERMISSION_DENIED as the default so an
+		// unmapped permission/auth WP_Error (e.g. insufficient_capability,
+		// authentication_required, missing_ability_name) still renders -32008
+		// rather than regressing to INTERNAL_ERROR.
+		$wp_error = new \WP_Error( 'insufficient_capability', 'User lacks required capability: read' );
+		$response = McpErrorMapper::from_wp_error( 1, $wp_error, McpErrorFactory::PERMISSION_DENIED );
+
+		$this->assertSame( McpErrorFactory::PERMISSION_DENIED, $response['error']['code'] );
+	}
+
+	public function test_permission_default_does_not_override_explicit_not_found_mapping(): void {
+		// Even on the permission path, ability_not_found stays -32003 — the
+		// explicit map wins over the supplied default. This is the core #140 fix:
+		// a name-resolution failure surfaced from a permission_callback is a
+		// not-found, not a permission denial.
+		$wp_error = new \WP_Error(
+			'ability_not_found',
+			"Ability 'content/list-posts' not found",
+			array( 'reason' => 'not_found', 'hint' => 'Call discover.' )
+		);
+		$response = McpErrorMapper::from_wp_error( 1, $wp_error, McpErrorFactory::PERMISSION_DENIED );
+
+		$this->assertSame( McpErrorFactory::TOOL_NOT_FOUND, $response['error']['code'] );
+		$this->assertStringNotContainsStringIgnoringCase( 'Permission denied', $response['error']['message'] );
+		$this->assertSame( 'not_found', $response['error']['data']['reason'] );
+		$this->assertArrayHasKey( 'hint', $response['error']['data'] );
+	}
+
+	public function test_permission_default_maps_not_public_to_permission_denied_with_reason(): void {
+		$wp_error = new \WP_Error(
+			'ability_not_public_mcp',
+			'Ability "x/y" is not exposed via MCP',
+			array( 'reason' => 'not_exposed' )
+		);
+		$response = McpErrorMapper::from_wp_error( 1, $wp_error, McpErrorFactory::PERMISSION_DENIED );
+
+		$this->assertSame( McpErrorFactory::PERMISSION_DENIED, $response['error']['code'] );
+		$this->assertSame( 'not_exposed', $response['error']['data']['reason'] );
 	}
 }

@@ -21,6 +21,13 @@ namespace WickedEvolutions\McpAdapter\Abilities;
 trait McpAbilityHelperTrait {
 
 	/**
+	 * Recovery hint attached to `ability_not_found` errors (issue #140). Carried
+	 * via WP_Error data; McpErrorMapper::from_wp_error forwards it to the client
+	 * as `error.data.hint` so the AI knows how to recover from a bad ability name.
+	 */
+	public const MCP_NOT_FOUND_HINT = "Call mcp-adapter/discover-abilities (optionally with category or search) to list valid ability names.";
+
+	/**
 	 * Checks if ability is publicly exposed via MCP.
 	 *
 	 * Discovery gate priority:
@@ -36,13 +43,21 @@ trait McpAbilityHelperTrait {
 		$ability = wp_get_ability( $ability_name );
 
 		if ( ! $ability ) {
-			return new \WP_Error( 'ability_not_found', "Ability '{$ability_name}' not found" );
+			return new \WP_Error(
+				'ability_not_found',
+				"Ability '{$ability_name}' not found",
+				array(
+					'reason' => 'not_found',
+					'hint'   => self::MCP_NOT_FOUND_HINT,
+				)
+			);
 		}
 
 		if ( ! self::is_ability_mcp_public( $ability ) ) {
 			return new \WP_Error(
 				'ability_not_public_mcp',
-				sprintf( 'Ability "%s" is not exposed via MCP', $ability_name )
+				sprintf( 'Ability "%s" is not exposed via MCP', $ability_name ),
+				array( 'reason' => 'not_exposed' )
 			);
 		}
 

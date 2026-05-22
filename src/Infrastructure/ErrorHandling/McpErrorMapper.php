@@ -32,6 +32,7 @@ class McpErrorMapper {
 		'rest_no_route'                => McpErrorFactory::METHOD_NOT_FOUND,
 		'rest_invalid_param'           => McpErrorFactory::INVALID_PARAMS,
 		'ability_not_found'            => McpErrorFactory::TOOL_NOT_FOUND,
+		'ability_not_public_mcp'       => McpErrorFactory::PERMISSION_DENIED,
 		'ability_invalid_permissions'  => McpErrorFactory::PERMISSION_DENIED,
 		'ability_invalid_input'        => McpErrorFactory::INVALID_PARAMS,
 		'ability_missing_input_schema' => McpErrorFactory::INTERNAL_ERROR,
@@ -54,13 +55,20 @@ class McpErrorMapper {
 	/**
 	 * Create an MCP error response from a WP_Error object.
 	 *
-	 * @param mixed     $request_id The request ID.
-	 * @param \WP_Error $wp_error   The WordPress error object.
+	 * @param mixed     $request_id   The request ID.
+	 * @param \WP_Error $wp_error     The WordPress error object.
+	 * @param int       $default_code MCP code used when the WP_Error code has no
+	 *                                explicit mapping. Defaults to INTERNAL_ERROR
+	 *                                for the execution path; the permission path
+	 *                                passes PERMISSION_DENIED so an unmapped
+	 *                                permission/auth WP_Error still renders as
+	 *                                -32008 (issue #140 — only `ability_not_found`
+	 *                                is downgraded to -32003 by its explicit map).
 	 *
 	 * @return array The MCP error response.
 	 */
-	public static function from_wp_error( $request_id, \WP_Error $wp_error ): array {
-		$code    = self::map_code( $wp_error->get_error_code() );
+	public static function from_wp_error( $request_id, \WP_Error $wp_error, int $default_code = McpErrorFactory::INTERNAL_ERROR ): array {
+		$code    = self::map_code( $wp_error->get_error_code(), $default_code );
 		$message = $wp_error->get_error_message();
 		$data    = $wp_error->get_error_data();
 
