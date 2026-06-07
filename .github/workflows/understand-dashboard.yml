@@ -39,7 +39,7 @@ jobs:
           cache-dependency-path: .ua/understand-anything-plugin/pnpm-lock.yaml
       - name: Install deps
         working-directory: .ua/understand-anything-plugin
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
       - name: Build core
         working-directory: .ua/understand-anything-plugin
         run: pnpm --filter @understand-anything/core build
