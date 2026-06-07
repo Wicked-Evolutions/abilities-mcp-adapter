@@ -21,3 +21,10 @@ Thumbs.db
 
 # Claude Code agent worktrees / local metadata (never committed)
 .claude/
+
+# Understand-Anything — commit graph data (knowledge-graph.json, meta.json,
+# fingerprints.json, .understandignore); ignore scratch + local static build.
+.understand-anything/intermediate/
+.understand-anything/tmp/
+.understand-anything/.trash-*/
+.understand-anything/dashboard-static/
