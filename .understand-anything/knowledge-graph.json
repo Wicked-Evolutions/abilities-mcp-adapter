@@ -34,7 +34,8 @@
         "trait",
         "utility",
         "handler",
-        "error-handling"
+        "error-handling",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -93,7 +94,8 @@
         "api-handler",
         "mcp-handler",
         "prompts",
-        "permission-check"
+        "permission-check",
+        "tested"
       ],
       "complexity": "complex"
     },
@@ -159,7 +161,8 @@
         "api-handler",
         "mcp-handler",
         "resources",
-        "permission-check"
+        "permission-check",
+        "tested"
       ],
       "complexity": "complex"
     },
@@ -354,7 +357,8 @@
         "error-handling",
         "factory",
         "json-rpc",
-        "utility"
+        "utility",
+        "tested"
       ],
       "complexity": "complex"
     },
@@ -450,7 +454,8 @@
       "tags": [
         "error-handling",
         "mapper",
-        "wordpress"
+        "wordpress",
+        "tested"
       ],
       "complexity": "simple"
     },
@@ -875,7 +880,8 @@
         "api-handler",
         "wp-ability",
         "introspection",
-        "permission-check"
+        "permission-check",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -1559,7 +1565,8 @@
         "data-model",
         "tools",
         "serialization",
-        "validation"
+        "validation",
+        "tested"
       ],
       "complexity": "complex"
     },
@@ -1686,7 +1693,8 @@
         "utility",
         "mapper",
         "annotations",
-        "normalization"
+        "normalization",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -1765,7 +1773,8 @@
       "tags": [
         "utility",
         "schema",
-        "transformation"
+        "transformation",
+        "tested"
       ],
       "complexity": "simple"
     },
@@ -1825,7 +1834,8 @@
         "security",
         "validation",
         "transport",
-        "middleware"
+        "middleware",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -2256,7 +2266,8 @@
         "service",
         "validation",
         "security",
-        "ability-registration"
+        "ability-registration",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "WordPress Abilities API registration pattern: paired register_*/execute_* methods per ability."
@@ -2323,7 +2334,8 @@
         "service",
         "transport",
         "cli",
-        "serialization"
+        "serialization",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "Distinguishes JSON-RPC notifications from requests by presence of the id key (request_id_state)."
@@ -2356,7 +2368,8 @@
         "service",
         "observability",
         "security",
-        "utility"
+        "utility",
+        "tested"
       ],
       "complexity": "moderate",
       "languageNotes": "Tag allowlisting plus SHA-256 hashing of secrets is a privacy-by-default telemetry pattern."
@@ -2447,7 +2460,8 @@
         "middleware",
         "security",
         "serialization",
-        "service"
+        "service",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "Static name-translation cache maps dash-form tool names to slash-form ability names for exemption lookup."
@@ -2480,7 +2494,8 @@
         "service",
         "rate-limiting",
         "data-model",
-        "utility"
+        "utility",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -2511,7 +2526,8 @@
         "service",
         "rate-limiting",
         "security",
-        "middleware"
+        "middleware",
+        "tested"
       ],
       "complexity": "complex"
     },
@@ -2542,7 +2558,8 @@
         "service",
         "security",
         "rate-limiting",
-        "validation"
+        "validation",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "CIDR matching and IPv6 expansion guard against spoofed X-Forwarded-For from untrusted sources."
@@ -2574,7 +2591,8 @@
         "service",
         "security",
         "data-model",
-        "validation"
+        "validation",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -2605,7 +2623,8 @@
         "data-model",
         "service",
         "config",
-        "persistence"
+        "persistence",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "Three-tier keyword bucket model with default+custom+removed override layering computed in get_active_keywords."
@@ -2668,7 +2687,8 @@
         "transport",
         "api-handler",
         "security",
-        "middleware"
+        "middleware",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "Implements McpRestTransportInterface; disables core CORS for MCP routes to emit its own origin-validated headers."
@@ -2764,7 +2784,8 @@
         "oauth",
         "pkce",
         "authorization-code",
-        "data-model"
+        "data-model",
+        "tested"
       ],
       "complexity": "moderate",
       "languageNotes": "Static store class backed by $wpdb; hashes codes at rest and uses hash_equals for constant-time comparison."
@@ -2833,7 +2854,8 @@
         "oauth",
         "client-registration",
         "validation",
-        "data-model"
+        "data-model",
+        "tested"
       ],
       "complexity": "complex"
     },
@@ -2952,7 +2974,8 @@
         "oauth",
         "authorization",
         "consent",
-        "security"
+        "security",
+        "tested"
       ],
       "complexity": "complex"
     },
@@ -3055,7 +3078,8 @@
         "oauth",
         "discovery",
         "oidc",
-        "metadata"
+        "metadata",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -3156,7 +3180,8 @@
         "oauth",
         "client-registration",
         "rate-limiting",
-        "endpoint"
+        "endpoint",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -3241,7 +3266,8 @@
         "oauth",
         "token-revocation",
         "rate-limiting",
-        "endpoint"
+        "endpoint",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -3292,7 +3318,8 @@
         "oauth",
         "token-grant",
         "endpoint",
-        "pkce"
+        "pkce",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -3360,7 +3387,8 @@
         "rate-limiting",
         "security",
         "oauth",
-        "throttling"
+        "throttling",
+        "tested"
       ],
       "complexity": "moderate",
       "languageNotes": "Prefers wp_using_ext_object_cache for atomic increments, falling back to transients."
@@ -3445,7 +3473,8 @@
         "oauth",
         "token-store",
         "refresh-rotation",
-        "security"
+        "security",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "Implements refresh-token rotation with reuse detection; replay blobs are AES-encrypted via hash_hkdf-derived keys, and access-token touches are deferred to shutdown."
@@ -4226,7 +4255,8 @@
         "config",
         "constants",
         "oauth",
-        "type-definition"
+        "type-definition",
+        "tested"
       ],
       "complexity": "simple"
     },
@@ -4592,7 +4622,8 @@
         "service",
         "audit",
         "oauth",
-        "event-handler"
+        "event-handler",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -4658,7 +4689,8 @@
         "utility",
         "projection",
         "admin",
-        "oauth"
+        "oauth",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -4706,7 +4738,8 @@
         "api-handler",
         "admin",
         "oauth",
-        "component"
+        "component",
+        "tested"
       ],
       "complexity": "complex"
     },
@@ -4874,7 +4907,8 @@
         "data-model",
         "value-object",
         "oauth",
-        "consent"
+        "consent",
+        "tested"
       ],
       "complexity": "simple"
     },
@@ -4905,7 +4939,8 @@
         "service",
         "policy",
         "oauth",
-        "consent"
+        "consent",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -4954,7 +4989,8 @@
         "component",
         "oauth",
         "consent",
-        "serialization"
+        "serialization",
+        "tested"
       ],
       "complexity": "complex"
     },
@@ -5071,7 +5107,8 @@
         "service",
         "consent",
         "oauth",
-        "data-model"
+        "data-model",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -5136,7 +5173,8 @@
         "config",
         "policy",
         "consent",
-        "oauth"
+        "oauth",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -5232,7 +5270,8 @@
         "security",
         "oauth",
         "consent",
-        "validation"
+        "validation",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -5314,7 +5353,8 @@
         "utility",
         "consent",
         "oauth",
-        "validation"
+        "validation",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -5362,7 +5402,8 @@
         "api-handler",
         "oauth",
         "endpoint",
-        "entry-point"
+        "entry-point",
+        "tested"
       ],
       "complexity": "complex"
     },
@@ -5564,7 +5605,8 @@
         "monitoring",
         "diagnostics",
         "auth",
-        "admin"
+        "admin",
+        "tested"
       ],
       "complexity": "moderate",
       "languageNotes": "Static class storing its rolling window in a WordPress option via update_option/get_option."
@@ -5633,7 +5675,8 @@
         "oauth",
         "entry-point",
         "service",
-        "api-handler"
+        "api-handler",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "Drives WordPress via add_action/add_filter; uses dbDelta for schema migration and DateTimeImmutable for token expiry checks."
@@ -5863,7 +5906,8 @@
         "security",
         "validation",
         "oauth",
-        "multisite"
+        "multisite",
+        "tested"
       ],
       "complexity": "simple",
       "languageNotes": "Caches a static host list and supports override()/reset() for deterministic unit testing."
@@ -5914,7 +5958,8 @@
         "auth",
         "oauth",
         "state",
-        "data-model"
+        "data-model",
+        "tested"
       ],
       "complexity": "moderate",
       "languageNotes": "Static request-scoped context reset on init/rest_api_init to prevent cross-request leakage."
@@ -5964,7 +6009,8 @@
         "security",
         "authorization",
         "oauth",
-        "middleware"
+        "middleware",
+        "tested"
       ],
       "complexity": "moderate",
       "languageNotes": "Hooks user_has_cap; resolves role capabilities through an injectable resolver defaulting to wp_roles()."
@@ -6452,7 +6498,8 @@
         "meta-tool",
         "ability",
         "batch",
-        "service"
+        "service",
+        "tested"
       ],
       "complexity": "moderate",
       "languageNotes": "WordPress ability registered via wp_register_ability with check_permission and execute callbacks."
@@ -6522,7 +6569,8 @@
         "meta-tool",
         "ability",
         "validation",
-        "security"
+        "security",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "Layers self::check_permission, MCP exposure checks, and OAuthScopeEnforcer::check before invoking the inner ability."
@@ -6628,7 +6676,8 @@
         "permission",
         "settings",
         "security",
-        "service"
+        "service",
+        "tested"
       ],
       "complexity": "moderate",
       "languageNotes": "Static utility class with a cached_settings static property backing get_option/update_option."
@@ -6712,7 +6761,8 @@
         "oauth",
         "consent",
         "grouping",
-        "utility"
+        "utility",
+        "tested"
       ],
       "complexity": "simple"
     },
@@ -6761,7 +6811,8 @@
         "security",
         "scope",
         "authorization",
-        "service"
+        "service",
+        "tested"
       ],
       "complexity": "moderate",
       "languageNotes": "Bridges PermissionManager-derived permissions and ScopeRegistry sensitivity to gate OAuth requests."
@@ -6848,7 +6899,8 @@
         "scope",
         "registry",
         "schema-definition",
-        "data-model"
+        "data-model",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "Static cache of all_scopes with umbrella expansion and registry-derived category coverage validation."
@@ -7235,7 +7287,8 @@
         "ability",
         "discovery",
         "pagination",
-        "permission"
+        "permission",
+        "tested"
       ],
       "complexity": "complex"
     },
@@ -7641,7 +7694,8 @@
         "data-model",
         "config",
         "value-object",
-        "core"
+        "core",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -8008,7 +8062,8 @@
         "redirect",
         "legacy",
         "wordpress",
-        "backward-compatibility"
+        "backward-compatibility",
+        "tested"
       ],
       "complexity": "simple"
     },
@@ -8023,7 +8078,8 @@
         "api-handler",
         "ui-controller",
         "wordpress",
-        "router"
+        "router",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "Uses static class constants for tab IDs and self:: dispatch; centralizes WP admin menu and asset enqueue logic."
@@ -8039,7 +8095,8 @@
         "redirect",
         "legacy",
         "wordpress",
-        "backward-compatibility"
+        "backward-compatibility",
+        "tested"
       ],
       "complexity": "simple"
     },
@@ -8070,7 +8127,8 @@
         "cron",
         "cleanup",
         "oauth",
-        "database"
+        "database",
+        "tested"
       ],
       "complexity": "moderate",
       "languageNotes": "Uses $wpdb direct queries with LIMIT-bounded batch deletes; cron hook name and 50000-row alert threshold are class constants."
@@ -8673,7 +8731,8 @@
         "utility",
         "mcp",
         "data-model",
-        "shared"
+        "shared",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "Stateless class of static methods acting as a validation toolkit; relies on WordPress i18n (__) for error strings."
@@ -8825,7 +8884,8 @@
         "validation",
         "mcp",
         "data-model",
-        "schema-definition"
+        "schema-definition",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "Delegates primitive checks to McpValidator and returns WP_Error on instance validation failures."
@@ -8909,7 +8969,8 @@
         "validation",
         "mcp",
         "data-model",
-        "resource"
+        "resource",
+        "tested"
       ],
       "complexity": "moderate",
       "languageNotes": "Delegates URI/MIME/annotation checks to McpValidator; returns WP_Error from instance-level validation."
@@ -8976,7 +9037,8 @@
         "validation",
         "mcp",
         "data-model",
-        "prompt"
+        "prompt",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "Reuses McpValidator for primitives and McpResourceValidator for embedded resource content within prompt messages."
@@ -9209,7 +9271,8 @@
         "redaction",
         "security",
         "data-model",
-        "infrastructure"
+        "infrastructure",
+        "tested"
       ],
       "complexity": "moderate",
       "languageNotes": "All-static accessor class; reads settings via SafetySettingsRepository and exposes WordPress apply_filters extension points."
@@ -9314,7 +9377,8 @@
         "exception",
         "redaction",
         "error-handling",
-        "infrastructure"
+        "infrastructure",
+        "tested"
       ],
       "complexity": "simple"
     },
@@ -9346,7 +9410,8 @@
         "security",
         "serialization",
         "service",
-        "infrastructure"
+        "infrastructure",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "Recursive array/object traversal with per-field keyword matching; deliberately avoids regex over full documents, running pattern matchers only on scalar strings."
@@ -9764,7 +9829,8 @@
         "utility",
         "json-rpc",
         "service",
-        "testing-support"
+        "testing-support",
+        "tested"
       ],
       "complexity": "complex",
       "languageNotes": "Static-method utility class under WickedEvolutions\\McpAdapter\\RateLimit; no instance state, used purely as a namespaced function bag for testability."
@@ -10687,7 +10753,8 @@
       "tags": [
         "security",
         "redaction",
-        "validation"
+        "validation",
+        "tested"
       ],
       "complexity": "moderate"
     },
@@ -18736,6 +18803,776 @@
       "type": "calls",
       "direction": "forward",
       "weight": 0.8
+    },
+    {
+      "source": "file:src/Domain/Tools/McpTool.php",
+      "target": "file:tests/Unit/Domain/Tools/OutputSchemaPassthroughTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Domain/Utils/McpAnnotationMapper.php",
+      "target": "file:tests/Unit/Domain/Utils/McpAnnotationMapperTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Domain/Utils/SchemaTransformer.php",
+      "target": "file:tests/Unit/Domain/Utils/SchemaTransformerTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Handlers/HandlerHelperTrait.php",
+      "target": "file:tests/Unit/Handlers/HandlerHelperTraitTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Handlers/Prompts/PromptsHandler.php",
+      "target": "file:tests/Unit/Handlers/Prompts/PromptsHandlerScopeEnforcementTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Handlers/Resources/ResourcesHandler.php",
+      "target": "file:tests/Unit/Handlers/Resources/ResourcesHandlerScopeEnforcementTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Abilities/GetAbilityInfoAbility.php",
+      "target": "file:tests/Unit/Handlers/Tools/PermissionErrorRemediationTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/ErrorHandling/McpErrorFactory.php",
+      "target": "file:tests/Unit/Infrastructure/ErrorHandling/McpErrorFactoryTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/ErrorHandling/McpErrorMapper.php",
+      "target": "file:tests/Unit/Infrastructure/ErrorHandling/McpErrorMapperTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/Redaction/RedactionConfig.php",
+      "target": "file:tests/Unit/Infrastructure/Redaction/RedactionConfigTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/Redaction/RedactionConfig.php",
+      "target": "file:tests/Unit/Infrastructure/Redaction/Bucket3EmailFamilyTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/Redaction/RedactionConfig.php",
+      "target": "file:tests/Unit/Infrastructure/Redaction/ResponseRedactorTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/Redaction/ResponseRedactor.php",
+      "target": "file:tests/Unit/Infrastructure/Redaction/Bucket3EmailFamilyTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/Redaction/ResponseRedactor.php",
+      "target": "file:tests/Unit/Infrastructure/Redaction/ResponseRedactorTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/Redaction/ResponseRedactor.php",
+      "target": "file:tests/Unit/Infrastructure/Redaction/SchemaPathExemptionTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/Redaction/ResponseRedactor.php",
+      "target": "file:tests/Unit/Infrastructure/Redaction/ToolsListSchemaExemptionTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/Redaction/RedactionLimitExceeded.php",
+      "target": "file:tests/Unit/Infrastructure/Redaction/ResponseRedactorTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/Redaction/RedactionLimitExceeded.php",
+      "target": "file:tests/Unit/Infrastructure/Redaction/SchemaPathExemptionTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/Redaction/RedactionLimitExceeded.php",
+      "target": "file:tests/Unit/Infrastructure/Redaction/ToolsListSchemaExemptionTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/Redaction/ResponseRedactionGate.php",
+      "target": "file:tests/Unit/Infrastructure/Redaction/ToolsListSchemaExemptionTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/RateLimit/BurstHarness.php",
+      "target": "file:tests/Unit/RateLimit/BurstHarnessTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/Redaction/PatternMatchers.php",
+      "target": "file:tests/Unit/Infrastructure/Redaction/PatternMatchersTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Abilities/Settings/SettingsAbilities.php",
+      "target": "file:tests/Unit/Abilities/Settings/SettingsAbilitiesTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Settings/SafetySettingsRepository.php",
+      "target": "file:tests/Unit/Auth/OAuth/OAuthClientIpTrustedProxyTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Cli/StdioServerBridge.php",
+      "target": "file:tests/Unit/Cli/RequestIdStateTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/Observability/BoundaryEventEmitter.php",
+      "target": "file:tests/Unit/Infrastructure/Observability/BoundaryEventEmitterTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Infrastructure/Redaction/ResponseRedactionGate.php",
+      "target": "file:tests/Unit/Infrastructure/Redaction/ResponseRedactionGateTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/RateLimit/CounterStore.php",
+      "target": "file:tests/Unit/RateLimit/CounterStoreTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/RateLimit/RateLimiter.php",
+      "target": "file:tests/Unit/RateLimit/RateLimiterTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/RateLimit/TrustedProxyResolver.php",
+      "target": "file:tests/Unit/RateLimit/TrustedProxyResolverTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Settings/ConfirmationTokenStore.php",
+      "target": "file:tests/Unit/Settings/ConfirmationTokenStoreTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Settings/SafetySettingsRepository.php",
+      "target": "file:tests/Unit/Settings/SafetySettingsRepositoryTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Transport/HttpTransport.php",
+      "target": "file:tests/Unit/Transport/HttpTransportTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Transport/Infrastructure/OriginValidator.php",
+      "target": "file:tests/Unit/Transport/Infrastructure/OriginValidatorTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/AuthorizationCodeStore.php",
+      "target": "file:tests/Unit/Auth/OAuth/AuthorizationCodeStoreSelectedRoleTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/AuthorizationCodeStore.php",
+      "target": "file:tests/Unit/Auth/OAuth/AuthorizationCodeStoreTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/ClientRegistry.php",
+      "target": "file:tests/Unit/Auth/OAuth/ClientRegistryTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Consent/AuthorizeRequestValidator.php",
+      "target": "file:tests/Unit/Auth/OAuth/Consent/AuthorizeRequestValidatorTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/DiscoveryEndpoints.php",
+      "target": "file:tests/Unit/Auth/OAuth/DiscoveryEndpointsTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Endpoints/RegisterEndpoint.php",
+      "target": "file:tests/Unit/Auth/OAuth/Endpoints/RegisterEndpointClassifyScopesTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/AuthorizationServer.php",
+      "target": "file:tests/Unit/Auth/OAuth/PathStyleMultisiteDiscoveryTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/DiscoveryEndpoints.php",
+      "target": "file:tests/Unit/Auth/OAuth/PathStyleMultisiteDiscoveryTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/RateLimiter.php",
+      "target": "file:tests/Unit/Auth/OAuth/RateLimiterAtomicTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/RateLimiter.php",
+      "target": "file:tests/Unit/Auth/OAuth/RateLimiterTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/ClientRegistry.php",
+      "target": "file:tests/Unit/Auth/OAuth/RedirectUriNormalizeTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/AuthorizationCodeStore.php",
+      "target": "file:tests/Unit/Auth/OAuth/TokenEndpointRedirectUriRawTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Endpoints/TokenEndpoint.php",
+      "target": "file:tests/Unit/Auth/OAuth/TokenEndpointRedirectUriRawTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/TokenStore.php",
+      "target": "file:tests/Unit/Auth/OAuth/TokenStoreIssueResponseTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/TokenStore.php",
+      "target": "file:tests/Unit/Auth/OAuth/TokenStoreReplayBlobTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/TokenStore.php",
+      "target": "file:tests/Unit/Auth/OAuth/TokenStoreRevocationCascadeTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/TokenStore.php",
+      "target": "file:tests/Unit/Auth/OAuth/TokenStoreRotationFamilyTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/TokenStore.php",
+      "target": "file:tests/Unit/Auth/OAuth/TokenStoreSelectedRoleTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/TokenStore.php",
+      "target": "file:tests/Unit/Auth/OAuth/TokenStoreTouchDeferredTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Endpoints/RevokeEndpoint.php",
+      "target": "file:tests/Unit/Endpoints/RevokeEndpointClientAuthTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Endpoints/RevokeEndpoint.php",
+      "target": "file:tests/Unit/Endpoints/RevokeEndpointRateLimitTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/RateLimiter.php",
+      "target": "file:tests/Unit/Endpoints/RevokeEndpointRateLimitTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Admin/Bridges/BoundaryAuditBuffer.php",
+      "target": "file:tests/Unit/Admin/Bridges/BoundaryAuditBufferTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Admin/Bridges/BridgeRowProjector.php",
+      "target": "file:tests/Unit/Admin/Bridges/BridgeRowProjectorTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Admin/Tabs/ConnectedBridgesTab.php",
+      "target": "file:tests/Unit/Admin/Tabs/ConnectedBridgesTabTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Consent/ConsentDecisionEvaluator.php",
+      "target": "file:tests/Unit/Auth/OAuth/Consent/ConsentDecisionEvaluatorTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Consent/ConsentDecision.php",
+      "target": "file:tests/Unit/Auth/OAuth/Consent/ConsentDecisionEvaluatorTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Consent/ConsentScreenRenderer.php",
+      "target": "file:tests/Unit/Auth/OAuth/Consent/ConsentScreenRendererTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Consent/ConsentDecision.php",
+      "target": "file:tests/Unit/Auth/OAuth/Consent/ConsentScreenRendererTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Consent/LastConsentLookup.php",
+      "target": "file:tests/Unit/Auth/OAuth/Consent/LastConsentLookupTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Consent/ConsentDecisionEvaluator.php",
+      "target": "file:tests/Unit/Auth/OAuth/Consent/LastConsentLookupTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Consent/ConsentDecision.php",
+      "target": "file:tests/Unit/Auth/OAuth/Consent/LastConsentLookupTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Consent/PolicyStore.php",
+      "target": "file:tests/Unit/Auth/OAuth/Consent/PolicyStoreTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Consent/RenderedScopeNonce.php",
+      "target": "file:tests/Unit/Auth/OAuth/Consent/RenderedScopeNonceTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Consent/RoleSelector.php",
+      "target": "file:tests/Unit/Auth/OAuth/Consent/RoleSelectorTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/McpResourcePath.php",
+      "target": "file:tests/Unit/Auth/OAuth/McpResourcePathTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Endpoints/AuthorizeEndpoint.php",
+      "target": "file:tests/Unit/Auth/OAuth/PathStyleMultisiteAuthorizeRoutingTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/AuthorizationServer.php",
+      "target": "file:tests/Unit/Auth/OAuth/PathStyleMultisiteAuthorizeRoutingTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Admin/Bridges/AuthHeaderProbe.php",
+      "target": "file:tests/Unit/Admin/Bridges/AuthHeaderProbeTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/AuthorizationServer.php",
+      "target": "file:tests/Unit/Auth/OAuth/AuthHeaderProbeNamespaceGateTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/AuthorizationServer.php",
+      "target": "file:tests/Unit/Auth/OAuth/AuthenticateBearerNarrowsToMcpResourceTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/AuthorizationServer.php",
+      "target": "file:tests/Unit/Auth/OAuth/AuthenticateBearerSelectedRoleTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/AuthorizationServer.php",
+      "target": "file:tests/Unit/Auth/OAuth/BearerHeaderTrimTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/AuthorizationServer.php",
+      "target": "file:tests/Unit/Auth/OAuth/IsWellKnownOrOAuthPathTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/OAuthHostAllowlist.php",
+      "target": "file:tests/Unit/Auth/OAuth/OAuthHostAllowlistTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/OAuthRequestContext.php",
+      "target": "file:tests/Unit/Auth/OAuth/OAuthRequestContextResetTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/OAuthRequestContext.php",
+      "target": "file:tests/Unit/Auth/OAuth/OAuthRequestContextTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/AuthorizationServer.php",
+      "target": "file:tests/Unit/Auth/OAuth/ResponseDifferentialHardeningTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/AuthorizationServer.php",
+      "target": "file:tests/Unit/Auth/OAuth/RestRouteHostAllowlistTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/OAuthHostAllowlist.php",
+      "target": "file:tests/Unit/Auth/OAuth/RestRouteHostAllowlistTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/SelectedRoleEnforcer.php",
+      "target": "file:tests/Unit/Auth/OAuth/SelectedRoleEnforcerTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/AuthorizationServer.php",
+      "target": "file:tests/Unit/Auth/OAuth/WwwAuthenticateBareChallengeCTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Abilities/ExecuteAbilityAbility.php",
+      "target": "file:tests/Unit/Abilities/ExecuteAbilityScopeEnforcementTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Abilities/BatchExecuteAbility.php",
+      "target": "file:tests/Unit/Abilities/MetaToolPermissionAnnotationTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Abilities/ExecuteAbilityAbility.php",
+      "target": "file:tests/Unit/Abilities/MetaToolPermissionAnnotationTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Admin/PermissionManager.php",
+      "target": "file:tests/Unit/Abilities/MetaToolPermissionAnnotationTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/OAuthScopeEnforcer.php",
+      "target": "file:tests/Unit/Abilities/MetaToolPermissionAnnotationTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Admin/PermissionManager.php",
+      "target": "file:tests/Unit/Admin/PermissionManagerTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/Consent/ScopeGrouper.php",
+      "target": "file:tests/Unit/Auth/OAuth/Consent/ScopeGrouperTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/OAuthScopeEnforcer.php",
+      "target": "file:tests/Unit/Auth/OAuth/OAuthScopeEnforcerCheckScopeTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/OAuthScopeEnforcer.php",
+      "target": "file:tests/Unit/Auth/OAuth/OAuthScopeEnforcerTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/ScopeRegistry.php",
+      "target": "file:tests/Unit/Auth/OAuth/ScopeCoverageDriftTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/ScopeRegistry.php",
+      "target": "file:tests/Unit/Auth/OAuth/ScopeRegistryTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Admin/PermissionManager.php",
+      "target": "file:tests/Unit/Domain/Utils/McpAnnotationMapperBuildTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Domain/Utils/McpAnnotationMapper.php",
+      "target": "file:tests/Unit/Domain/Utils/McpAnnotationMapperBuildTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Abilities/DiscoverAbilitiesAbility.php",
+      "target": "file:tests/Unit/Abilities/DiscoverAbilitiesDefaultsTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Core/McpServerConfig.php",
+      "target": "file:tests/Unit/Core/McpServerConfigTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Cli/StdioServerBridge.php",
+      "target": "file:tests/Unit/Cli/StdioServerBridgeIdNullTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Admin/AdapterAdminPage.php",
+      "target": "file:tests/Unit/Admin/AdapterAdminPageTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Admin/AbilitySettingsPage.php",
+      "target": "file:tests/Unit/Admin/LegacyRedirectorsTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Admin/SafetySettingsPage.php",
+      "target": "file:tests/Unit/Admin/LegacyRedirectorsTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Auth/OAuth/OAuthCleanup.php",
+      "target": "file:tests/Unit/Auth/OAuth/OAuthCleanupTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Domain/Utils/McpValidator.php",
+      "target": "file:tests/Unit/Domain/Utils/McpValidatorTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Domain/Tools/McpToolValidator.php",
+      "target": "file:tests/Unit/Domain/Tools/McpToolValidatorTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Domain/Resources/McpResourceValidator.php",
+      "target": "file:tests/Unit/Domain/Resources/McpResourceValidatorTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/Domain/Prompts/McpPromptValidator.php",
+      "target": "file:tests/Unit/Domain/Prompts/McpPromptValidatorTest.php",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
     }
   ],
   "layers": [

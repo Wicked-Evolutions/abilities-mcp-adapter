@@ -36,29 +36,29 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: .ua/pnpm-lock.yaml
+          cache-dependency-path: .ua/understand-anything-plugin/pnpm-lock.yaml
       - name: Install deps
-        working-directory: .ua
-        run: pnpm install --frozen-lockfile
+        working-directory: .ua/understand-anything-plugin
+        run: pnpm install
       - name: Build core
-        working-directory: .ua
+        working-directory: .ua/understand-anything-plugin
         run: pnpm --filter @understand-anything/core build
       - name: Build static dashboard
-        working-directory: .ua/packages/dashboard
+        working-directory: .ua/understand-anything-plugin/packages/dashboard
         env:
           VITE_GRAPH_URL: ./knowledge-graph.json
           VITE_META_URL: ./meta.json
         run: npx vite build --config vite.config.demo.ts --base=./ --outDir dist --emptyOutDir
       - name: Inject knowledge graph
         run: |
-          cp .understand-anything/knowledge-graph.json .ua/packages/dashboard/dist/knowledge-graph.json
-          cp .understand-anything/meta.json .ua/packages/dashboard/dist/meta.json
+          cp .understand-anything/knowledge-graph.json .ua/understand-anything-plugin/packages/dashboard/dist/knowledge-graph.json
+          cp .understand-anything/meta.json .ua/understand-anything-plugin/packages/dashboard/dist/meta.json
       - uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .ua/packages/dashboard/dist
+          path: .ua/understand-anything-plugin/packages/dashboard/dist
       - name: Deploy to Pages
         id: deployment
         uses: actions/deploy-pages@v4
